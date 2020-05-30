@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Data.Common;
 
 namespace LocalVersionControlSystem.IndexingSystem
 {
@@ -35,21 +36,20 @@ namespace LocalVersionControlSystem.IndexingSystem
             return contentSHA256;
         }
 
+        public List<Node> GetChildren()
+        {
+            return children;
+        }
+
         public void AddChild(Node newChild)
         {
             children.Add(newChild);
         }
 
-        public string ToString(string pathSHA256)
+        //Return its information.
+        public override string ToString()
         {
-            string result = pathSHA256 + "/" + GetNameSHA256() + "##" + GetContentSHA256();
-            pathSHA256 = result;
-            int size = children.Count;
-            for (int i = 0; i < size; i++)
-            {
-                result = result + "\n" + children[i].ToString(pathSHA256);
-            }
-            return result;
+            return GetNameSHA256() + "##" + GetContentSHA256();
         }
 
     }

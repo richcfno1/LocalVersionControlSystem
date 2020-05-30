@@ -10,11 +10,19 @@ namespace LocalVersionControlSystem
     {
         static void Main(string[] args)
         {
-            DirectoryTree dt = new DirectoryTree("Test/SampleProject", "Test/indexing.txt", "Test/Objects");
+            Console.WriteLine("Enter path of your project");
+            string directoryPath = Console.ReadLine();
+            string indexPath = new DirectoryInfo(directoryPath).Parent.FullName + "/indexing.txt";
+            string objectsPath = new DirectoryInfo(directoryPath).Parent.FullName + "/Objects";
+
+            if (!new DirectoryInfo(indexPath).Exists)
+                new DirectoryInfo(objectsPath).Create();
+            if (!new DirectoryInfo(indexPath).Exists)
+                new DirectoryInfo(objectsPath).Create();
+
+            DirectoryTree dt = new DirectoryTree(directoryPath, indexPath, objectsPath);
             dt.ImportTreeFromDirectory();
             dt.ExportTreeToIndexing();
-
-            //ObjectCreator.CreateFile("Test/", "Test/Objects/56AD8DAD6AA9.objdata");
         }
     }
 }
