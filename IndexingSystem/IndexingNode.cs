@@ -4,27 +4,27 @@ using System.Data.Common;
 
 namespace LocalVersionControlSystem.IndexingSystem
 {
-    class Node
+    class IndexingNode
     {
         private string nameSHA256;
         private string contentSHA256;
-        private Node parent;
-        private List<Node> children;
+        private IndexingNode parent;
+        private List<IndexingNode> children;
 
-        public Node(string newNameSHA256, Node newParent)
+        public IndexingNode(string newNameSHA256, IndexingNode newParent)
         {
             nameSHA256 = newNameSHA256;
             contentSHA256 = "0000000000000000000000000000000000000000000000000000000000000000";
             parent = newParent;
-            children = new List<Node>();
+            children = new List<IndexingNode>();
         }
 
-        public Node(string newNameSHA256, string newContentSHA256, Node newParent)
+        public IndexingNode(string newNameSHA256, string newContentSHA256, IndexingNode newParent)
         {
             nameSHA256 = newNameSHA256;
             contentSHA256 = newContentSHA256;
             parent = newParent;
-            children = new List<Node>();
+            children = new List<IndexingNode>();
         }
 
         public string GetNameSHA256()
@@ -36,12 +36,12 @@ namespace LocalVersionControlSystem.IndexingSystem
             return contentSHA256;
         }
 
-        public List<Node> GetChildren()
+        public List<IndexingNode> GetChildren()
         {
             return children;
         }
 
-        public void AddChild(Node newChild)
+        public void AddChild(IndexingNode newChild)
         {
             children.Add(newChild);
         }

@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace LocalVersionControlSystem.ObjectSystem
 {
-    class ObjectCreator
+    class ObjectManager
     {
         //Object file name includes the first 6 digit of SHA256 of file and first 6 digit of SHA256 of file content.
         private static readonly int nameSHA256PartLength = 6;
@@ -48,18 +48,34 @@ namespace LocalVersionControlSystem.ObjectSystem
             return System.Text.Encoding.UTF8.GetString(tempAll.Skip(65).Take(64).ToArray());
         }
 
+        public static string GetName(string objectPath)
+        {
+            byte[] tempAll = File.ReadAllBytes(objectPath);
+            if (!GetContentSHA256(objectPath).Equals("0000000000000000000000000000000000000000000000000000000000000000"))
+            {
+                int index = 0;
+                for (int i = 130; i < tempAll.Length; i++)
+                {
+                    if (tempAll[i] == 10)
+                    {
+                        index = i;
+                        break;
+                    }
+                }
+                return System.Text.Encoding.UTF8.GetString(tempAll.Skip(130).Take(index - 130).ToArray());
+            }
+            return System.Text.Encoding.UTF8.GetString(tempAll.Skip(130).ToArray());
+        }
+
         //Find the path to a object with specific NameSHA256, ContentSHA256, and path to all objects
         public static string FindObjectPath(string nameSHA256, string contentSHA256, string objectsPath)
         {
-            string result = "";
-
             DirectoryInfo temp = new DirectoryInfo(objectsPath);
             foreach (FileInfo f in temp.GetFiles())
             {
                 if (GetNameSHA256(f.FullName).Equals(nameSHA256) && GetContentSHA256(f.FullName).Equals(contentSHA256))
                 {
-                    result = f.FullName;
-                    break;
+                    return f.FullName;
                 }
             }
 
@@ -67,12 +83,11 @@ namespace LocalVersionControlSystem.ObjectSystem
             {
                 if (GetNameSHA256(d.FullName).Equals(nameSHA256) && GetContentSHA256(temp.FullName).Equals(contentSHA256))
                 {
-                    result = d.FullName;
-                    break;
+                    return d.FullName;
                 }
             }
 
-            return result;
+            return "";
         }
 
         //Create a file at targetPath form a given object at objectPath, return the path of file.

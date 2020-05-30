@@ -3,18 +3,46 @@ using System.Collections.Generic;
 using System.Text;
 using System.IO;
 using LocalVersionControlSystem.ObjectSystem;
+using System.Collections;
 
 namespace LocalVersionControlSystem.IndexingSystem
 {
-    class DirectoryTree
+    class IndexingTree
     {
         private string directoryPath; //Actual directory for user's project.
         private string indexPath;     //Place to save indexing.
         private string objectsPath;   //Place to save objects.
-        private Node root;            //Root node of the tree.
+        private IndexingNode root;    //Root node of the tree.
+
+        //Return a list of lines that are only in indexingA.
+        public static string[] CompareTwoIndexing(string indexingAPath, string indexingBPath)
+        {
+            string[] indexingA = File.ReadAllLines(indexingAPath);
+            string[] indexingB = File.ReadAllLines(indexingBPath);
+            List<string> result = new List<string>();
+
+            foreach (string i in indexingA)
+            {
+                bool isFind = false;
+                foreach (string j in indexingB)
+                {
+                    if (i.Equals(j))
+                    {
+                        isFind = true;
+                        break;
+                    }
+                }
+                if (!isFind)
+                {
+                    result.Add(i);
+                }
+            }
+
+            return result.ToArray();
+        }
 
         //Initialize the path are needed
-        public DirectoryTree(String newDirectoryPath, string newIndexPath, string newobjectsPath)
+        public IndexingTree(String newDirectoryPath, string newIndexPath, string newobjectsPath)
         {
             directoryPath = newDirectoryPath;
             indexPath = newIndexPath;
@@ -22,23 +50,23 @@ namespace LocalVersionControlSystem.IndexingSystem
         }
 
         //The function which can implement ImportTreeFromDirectory.
-        private void CreateTreeFromDirectory(string path, Node parent)
+        private void CreateTreeFromDirectory(string path, IndexingNode parent)
         {
             DirectoryInfo temp = new DirectoryInfo(path);
             foreach (FileInfo f in temp.GetFiles())
             {
                 string tempNameSHA256 = SHA256Helper.GetStringSHA256(f.Name);
                 string tempContentSHA256 = SHA256Helper.GetFileSHA256(path + "/" + f.Name);
-                parent.AddChild(new Node(tempNameSHA256, tempContentSHA256, parent));
-                ObjectCreator.CreateObject(f, tempNameSHA256, tempContentSHA256, objectsPath);
+                parent.AddChild(new IndexingNode(tempNameSHA256, tempContentSHA256, parent));
+                ObjectManager.CreateObject(f, tempNameSHA256, tempContentSHA256, objectsPath);
             }
 
             foreach (DirectoryInfo d in temp.GetDirectories())
             {
                 string tempNameSHA256 = SHA256Helper.GetStringSHA256(d.Name);
-                Node tempNode = new Node(tempNameSHA256, parent);
+                IndexingNode tempNode = new IndexingNode(tempNameSHA256, parent);
                 parent.AddChild(tempNode);
-                ObjectCreator.CreateObject(d, tempNameSHA256, objectsPath);
+                ObjectManager.CreateObject(d, tempNameSHA256, objectsPath);
                 CreateTreeFromDirectory(path + "/" + d.Name, tempNode);
             }
         }
@@ -47,13 +75,13 @@ namespace LocalVersionControlSystem.IndexingSystem
         public void ImportTreeFromDirectory()
         {
             DirectoryInfo rootInfo = new DirectoryInfo(directoryPath);
-            ObjectCreator.CreateObject(rootInfo, SHA256Helper.GetStringSHA256(rootInfo.Name), objectsPath);
-            root = new Node(SHA256Helper.GetStringSHA256((new DirectoryInfo(directoryPath)).Name), null);
+            ObjectManager.CreateObject(rootInfo, SHA256Helper.GetStringSHA256(rootInfo.Name), objectsPath);
+            root = new IndexingNode(SHA256Helper.GetStringSHA256((new DirectoryInfo(directoryPath)).Name), null);
             CreateTreeFromDirectory(directoryPath, root);
         }
 
         //The function which can implement ImportTreeFromIndexing.
-        private void CreateTreeFromIndexing(string[] indexing, int curLine, Node parent)
+        private void CreateTreeFromIndexing(string[] indexing, int curLine, IndexingNode parent)
         {
             bool isFinishedFile = false;
             while(curLine + 1 < indexing.Length)
@@ -72,14 +100,14 @@ namespace LocalVersionControlSystem.IndexingSystem
                 if (contentSHA256.Equals("0000000000000000000000000000000000000000000000000000000000000000"))
                 {
                     isFinishedFile = true;
-                    Node tempNode = new Node(nameSHA256, parent);
+                    IndexingNode tempNode = new IndexingNode(nameSHA256, parent);
                     parent.AddChild(tempNode);
                     CreateTreeFromIndexing(indexing, curLine, tempNode);
                 }
 
                 else if (!isFinishedFile)
                 {
-                    Node tempNode = new Node(nameSHA256, contentSHA256, parent);
+                    IndexingNode tempNode = new IndexingNode(nameSHA256, contentSHA256, parent);
                     parent.AddChild(tempNode);
                 }
 
@@ -90,20 +118,20 @@ namespace LocalVersionControlSystem.IndexingSystem
         public void ImportTreeFromIndexing()
         {
             string[] indexing = File.ReadAllLines(indexPath);
-            root = new Node(indexing[0].Substring(1, 64), null);
+            root = new IndexingNode(indexing[0].Substring(1, 64), null);
             CreateTreeFromIndexing(indexing, 0, root);
         }
 
         //The function which can implement ExportTreeToDirectory.
-        private void CreateDirectoryFromTree(Node curNode, string curPath)
+        private void CreateDirectoryFromTree(IndexingNode curNode, string curPath)
         {
-            string objectPath = ObjectCreator.FindObjectPath(curNode.GetNameSHA256(), curNode.GetContentSHA256(), objectsPath);
+            string objectPath = ObjectManager.FindObjectPath(curNode.GetNameSHA256(), curNode.GetContentSHA256(), objectsPath);
             string nextLayerPath = "";
             if (objectPath != "" && curNode.GetContentSHA256() != "0000000000000000000000000000000000000000000000000000000000000000")
-                ObjectCreator.CreateFile(curPath, objectPath);
+                ObjectManager.CreateFile(curPath, objectPath);
             if (objectPath != "" && curNode.GetContentSHA256() == "0000000000000000000000000000000000000000000000000000000000000000")
-                nextLayerPath = ObjectCreator.CreateDirectory(curPath, objectPath);
-            List<Node> children = curNode.GetChildren();
+                nextLayerPath = ObjectManager.CreateDirectory(curPath, objectPath);
+            List<IndexingNode> children = curNode.GetChildren();
             int size = children.Count;
             for (int i = 0; i < size; i++)
             {
@@ -118,11 +146,11 @@ namespace LocalVersionControlSystem.IndexingSystem
         }
 
         //The function which can implement ExportTreeToIndexing.
-        private string CreateIndexingFromTree(Node curNode, string pathSHA256)
+        private string CreateIndexingFromTree(IndexingNode curNode, string pathSHA256)
         {
             string result = pathSHA256 + "/" + curNode.ToString();
             pathSHA256 = result;
-            List<Node> children = curNode.GetChildren();
+            List<IndexingNode> children = curNode.GetChildren();
             int size = children.Count;
             for (int i = 0; i < size; i++)
             {
