@@ -13,7 +13,7 @@ namespace LocalVersionControlSystem.IndexingSystem
         public Node(string newNameSHA256, Node newParent)
         {
             nameSHA256 = newNameSHA256;
-            contentSHA256 = "00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00";
+            contentSHA256 = "0000000000000000000000000000000000000000000000000000000000000000";
             parent = newParent;
             children = new List<Node>();
         }

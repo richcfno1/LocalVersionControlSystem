@@ -15,7 +15,7 @@ namespace LocalVersionControlSystem.IndexingSystem
             SHA256Managed sHA256 = new SHA256Managed();
             byte[] by = sHA256.ComputeHash(sHA256Data);
 
-            return BitConverter.ToString(by);
+            return BitConverter.ToString(by).Replace("-", "");
         }
 
         public static string GetFileSHA256(string path)
@@ -25,7 +25,9 @@ namespace LocalVersionControlSystem.IndexingSystem
             SHA256Managed sHA256 = new SHA256Managed();
             byte[] by = sHA256.ComputeHash(stream);
 
-            return BitConverter.ToString(by);
+            stream.Close();
+
+            return BitConverter.ToString(by).Replace("-", "");
         }
     }
 }

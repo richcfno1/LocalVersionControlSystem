@@ -8,9 +8,9 @@ namespace LocalVersionControlSystem
     {
         static void Main(string[] args)
         {
-            DirectoryTree dt = new DirectoryTree("Test/SampleProject", "Test/indexing.txt");
-            dt.update();
-            dt.export();
+            DirectoryTree dt = new DirectoryTree("Test/SampleProject", "Test/indexing.txt", "Test/Objects");
+            dt.ImportTreeFromIndexing();
+            dt.ExportTreeToIndexing();
         }
     }
 }
