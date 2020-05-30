@@ -11,13 +11,13 @@ namespace LocalVersionControlSystem
     {
         static void Main(string[] args)
         {
-            CommitsList cml = new CommitsList("Test");
-            cml.LoadCommits();
-            Commit cm = new Commit("Test");
-            cm.LoadFromDirectory();
-            cm.BuildIndexing();
-            cml.AddCommit(cm);
-            cml.ShowDiff();
+            CommitsList cml = new CommitsList("Test"); //Create the list
+            cml.LoadCommits(); //Load list from Test/Indexing
+            Commit cm = new Commit("Test"); //Create a new commit
+            cm.LoadFromDirectory(); //Use current diretroy and file to make a tree
+            cm.BuildIndexing(); //Export the tree as indexing file
+            cml.AddCommit(cm); //Add the commit to list
+            cml.ShowDiff(); //Show difference between commits.
         }
     }
 }
