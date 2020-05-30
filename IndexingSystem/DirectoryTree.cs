@@ -95,13 +95,13 @@ namespace LocalVersionControlSystem.IndexingSystem
         //Using indexing and objects to build the directory.
         public void ExportTreeToDirectory()
         {
-
+            
         }
 
         //Save current tree to indexing.
         public void ExportTreeToIndexing()
         {
-            StreamWriter sw = new StreamWriter(new FileStream("Test/testresult.txt", FileMode.Create));
+            StreamWriter sw = new StreamWriter(new FileStream(indexPath, FileMode.Create));
             sw.WriteLine(root.ToString(""));
             sw.Close();
         }
