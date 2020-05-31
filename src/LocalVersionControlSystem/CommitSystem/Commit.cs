@@ -8,71 +8,46 @@ namespace LocalVersionControlSystem.CommitSystem
 {
     class Commit
     {
-        private string serialNumber;
+        public string ID { get; }
+        public string ProjectIndexFilePath => _directoryTree.IndexFilePath;
+        public DateTime SubmitTime =>
+            // TODO: this should be saved inside a file
+            // instead of relying on filesystem time
+            new FileInfo(ProjectIndexFilePath).CreationTime;
 
-        private string projectPath;
-        private string projectDirectoryPath;
-        private string projectIndexingPath;
-        private string projectObjectsPath;
-        
-        private IndexingTree directoryTree;
+        private readonly IndexingTree _directoryTree;
 
-        public Commit(string newProjectPath)
+        public Commit(Project project)
         {
-            serialNumber = SHA256Helper.GetStringSHA256(Guid.NewGuid().ToString()).Substring(0, 8);
+            // TODO: generate id from author, timestamp and/or file hash
+            ID = HashHelper.HashString(Guid.NewGuid().ToString());
 
-            projectPath = newProjectPath;
-            projectDirectoryPath = projectPath + "/Project";
-            projectIndexingPath = projectPath + "/Indexing/indexing" + serialNumber + ".idxdata";
-            projectObjectsPath = projectPath + "/Objects";
-
-            directoryTree = new IndexingTree(projectDirectoryPath, projectIndexingPath, projectObjectsPath);
+            _directoryTree = new IndexingTree(project, ID);
         }
 
-        public Commit(string newProjectPath, string newSerialNumber)
+        public Commit(Project project, string id)
         {
-            serialNumber = newSerialNumber;
-
-            projectPath = newProjectPath;
-            projectDirectoryPath = projectPath + "/Project";
-            projectIndexingPath = projectPath + "/Indexing/indexing" + serialNumber + ".idxdata";
-            projectObjectsPath = projectPath + "/Objects";
-
-            directoryTree = new IndexingTree(projectDirectoryPath, projectIndexingPath, projectObjectsPath);
-        }
-
-        public string GetSerialNumber()
-        {
-            return serialNumber;
-        }
-
-        public string GetProjectIndexingPath()
-        {
-            return projectIndexingPath;
-        }
-
-        public DateTime GetSubmitTime()
-        {
-            return new FileInfo(projectIndexingPath).CreationTime;
+            ID = id;
+            _directoryTree = new IndexingTree(project, ID);
         }
 
         public void LoadFromDirectory()
         {
-            directoryTree.ImportTreeFromDirectory();
+            _directoryTree.ImportTreeFromDirectory();
         }
 
         public void LoadFromIndexing()
         {
-            directoryTree.ImportTreeFromIndexing();
+            _directoryTree.ImportTreeFromIndexing();
         }
         public void BuildDirectory()
         {
-            directoryTree.ExportTreeToDirectory();
+            _directoryTree.ExportTreeToDirectory();
         }
 
         public void BuildIndexing()
         {
-            directoryTree.ExportTreeToIndexing();
+            _directoryTree.ExportTreeToIndexing();
         }
     }
 }
