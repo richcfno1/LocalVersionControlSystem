@@ -3,7 +3,7 @@ using System.Text;
 using System.IO;
 using System.Security.Cryptography;
 
-namespace LocalVersionControlSystem.IndexingSystem
+namespace LocalVersionControlSystem.Helper
 {
     static class HashHelper
     {

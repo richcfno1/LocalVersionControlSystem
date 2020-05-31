@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.IO;
 using LocalVersionControlSystem.ObjectSystem;
-using System.Collections;
+using LocalVersionControlSystem.Helper;
 using System.Linq;
 
 namespace LocalVersionControlSystem.IndexingSystem

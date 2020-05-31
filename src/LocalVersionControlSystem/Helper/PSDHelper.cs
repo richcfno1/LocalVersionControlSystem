@@ -1,18 +1,18 @@
 ﻿//Original author: zgke@sina.com qq:116149
 //Update after 11 years by RC
+//Temporarily remove anything about write a PSD file
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Drawing.Imaging;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.IO;
-using System.Dynamic;
 
-namespace LocalVersionControlSystem
+namespace LocalVersionControlSystem.Helper
 {
     public class PSDHelper
     {
+        //PSD file part 1: Head
         private class PSDHead
         {
             //Length of head is 26
@@ -25,7 +25,7 @@ namespace LocalVersionControlSystem
             }
 
             //Version
-            public byte Version
+            public byte _version
             {
                 get
                 {
@@ -38,7 +38,7 @@ namespace LocalVersionControlSystem
             }
 
             //Number of channels
-            public ushort Channels
+            public ushort _channels
             {
                 get
                 {
@@ -53,7 +53,7 @@ namespace LocalVersionControlSystem
             }
 
             //Height
-            public uint Height
+            public uint _height
             {
                 get
                 {
@@ -70,7 +70,7 @@ namespace LocalVersionControlSystem
             }
 
             //Width
-            public uint Width
+            public uint _width
             {
                 get
                 {
@@ -87,7 +87,7 @@ namespace LocalVersionControlSystem
             }
 
             //Number of bits per channel
-            public ushort BitsPerPixel
+            public ushort _bitsPerPixel
             {
                 get
                 {
@@ -103,7 +103,7 @@ namespace LocalVersionControlSystem
             }
 
             //Color mode
-            public ushort ColorMode
+            public ushort _colorMode
             {
                 get
                 {
@@ -116,114 +116,95 @@ namespace LocalVersionControlSystem
                     _headBytes[24] = _Value[0];
                 }
             }
+
             public PSDHead(byte[] p_Data)
             {
                 _headBytes = p_Data;
             }
-
-            public PSDHead()
-            {
-                _headBytes[0] = 0x38;
-                _headBytes[1] = 0x42;
-                _headBytes[2] = 0x50;
-                _headBytes[3] = 0x53;
-                _headBytes[5] = 0x01;
-
-                ColorMode = 3;
-                BitsPerPixel = 8;
-            }
         }
-        private class ColorModel
-        {
-            private byte[] m_ColorData;
 
-            public ColorPalette ColorData
+        //PSD file part 2: ColorMode
+        private class PSDColorMode
+        {
+            //The size of color data in bytes
+            private byte[] _sizeBytes = new byte[4];
+            //Only color data in bytes
+            private byte[] _colorModeBytes;
+
+            //The size of color data in uint
+            public uint _bIMSize
             {
                 get
                 {
-                    Bitmap _Bitmap = new Bitmap(1, 1, PixelFormat.Format8bppIndexed);
-                    ColorPalette _ColorPalette = _Bitmap.Palette;
-                    if (m_ColorData.Length == 0) return _ColorPalette;
+                    return BitConverter.ToUInt32(new byte[] { _sizeBytes[3], _sizeBytes[2], _sizeBytes[1], _sizeBytes[0] }, 0);
+                }
+                set
+                {
+                    byte[] _valueBytes = BitConverter.GetBytes(value);
+                    _sizeBytes[0] = _valueBytes[3];
+                    _sizeBytes[1] = _valueBytes[2];
+                    _sizeBytes[2] = _valueBytes[1];
+                    _sizeBytes[3] = _valueBytes[0];
+                }
+            }
+
+            //Color data
+            public ColorPalette _colorData
+            {
+                get
+                {
+                    using Bitmap bitmap = new Bitmap(1, 1, PixelFormat.Format8bppIndexed);
+                    ColorPalette _ColorPalette = bitmap.Palette;
+                    if (_colorModeBytes.Length == 0) return _ColorPalette;
                     for (int i = 0; i != 256; i++)
                     {
-                        _ColorPalette.Entries[i] = Color.FromArgb(m_ColorData[i], m_ColorData[i + 256], m_ColorData[i + 512]);
+                        _ColorPalette.Entries[i] = Color.FromArgb(_colorModeBytes[i], _colorModeBytes[i + 256], _colorModeBytes[i + 512]);
                     }
                     return _ColorPalette;
                 }
                 set
                 {
-                    m_ColorData = new byte[768];
+                    _colorModeBytes = new byte[768];
                     for (int i = 0; i != 256; i++)
                     {
-                        m_ColorData[i] = value.Entries[i].R;
-                        m_ColorData[i + 256] = value.Entries[i].G;
-                        m_ColorData[i + 512] = value.Entries[i].B;
+                        _colorModeBytes[i] = value.Entries[i].R;
+                        _colorModeBytes[i + 256] = value.Entries[i].G;
+                        _colorModeBytes[i + 512] = value.Entries[i].B;
                     }
                 }
             }
 
-            private byte[] m_BIMSize = new byte[4];
-
-            public uint BIMSize
+            public PSDColorMode(FileStream fs)
             {
-                get
-                {
-                    return BitConverter.ToUInt32(new byte[] { m_BIMSize[3], m_BIMSize[2], m_BIMSize[1], m_BIMSize[0] }, 0);
-                }
-                set
-                {
-                    byte[] _Value = BitConverter.GetBytes(value);
-                    m_BIMSize[0] = _Value[3];
-                    m_BIMSize[1] = _Value[2];
-                    m_BIMSize[2] = _Value[1];
-                    m_BIMSize[3] = _Value[0];
-                }
-            }
-
-            public ColorModel(FileStream p_FileStream)
-            {
-                byte[] _CountByte = new byte[4];
-                p_FileStream.Read(_CountByte, 0, 4);
-                Array.Reverse(_CountByte);
-                int _Count = BitConverter.ToInt32(_CountByte, 0);
-                m_ColorData = new byte[_Count];
-                if (_Count != 0) p_FileStream.Read(m_ColorData, 0, _Count);
-                p_FileStream.Read(m_BIMSize, 0, 4);
-            }
-
-            public ColorModel()
-            {
-                m_ColorData = new byte[0];
-            }
-
-            public byte[] GetBytes()
-            {
-                MemoryStream _Memory = new MemoryStream();
-                byte[] _Value = BitConverter.GetBytes(m_ColorData.Length);
-                Array.Reverse(_Value);
-                _Memory.Write(_Value, 0, _Value.Length);
-                _Memory.Write(m_ColorData, 0, m_ColorData.Length);
-                _Memory.Write(m_BIMSize, 0, 4);
-                return _Memory.ToArray();
+                byte[] countByte = new byte[4];
+                fs.Read(countByte, 0, 4);
+                _sizeBytes = countByte;
+                Array.Reverse(countByte);
+                int count = BitConverter.ToInt32(countByte, 0);
+                _colorModeBytes = new byte[count];
+                if (count != 0)
+                    fs.Read(_colorModeBytes, 0, count);
             }
         }
+
+        //PSD file part 3: Image resources
         private class BIM
         {
-            private byte[] m_Data = new byte[] { 0x38, 0x42, 0x49, 0x4D };
-            private byte[] m_TypeID = new byte[2];
-            private byte[] m_Name = new byte[0];
+            private byte[] _data = new byte[] { 0x38, 0x42, 0x49, 0x4D };
+            private byte[] _typeID = new byte[2];
+            private byte[] _name = Array.Empty<byte>();
 
             public ushort TypeID
             {
                 get
                 {
-                    return BitConverter.ToUInt16(new byte[] { m_TypeID[1], m_TypeID[0] }, 0);
+                    return BitConverter.ToUInt16(new byte[] { _typeID[1], _typeID[0] }, 0);
                 }
                 set
                 {
                     byte[] _Value = BitConverter.GetBytes(value);
-                    m_TypeID[0] = _Value[1];
-                    m_TypeID[1] = _Value[0];
+                    _typeID[0] = _Value[1];
+                    _typeID[1] = _Value[0];
                 }
             }
 
@@ -233,16 +214,16 @@ namespace LocalVersionControlSystem
             {
                 byte[] _Type = new byte[4];
                 p_FileStream.Read(_Type, 0, 4);
-                if (m_Data[0] == _Type[0] && m_Data[1] == _Type[1] && m_Data[2] == _Type[2] && m_Data[3] == _Type[3])
+                if (_data[0] == _Type[0] && _data[1] == _Type[1] && _data[2] == _Type[2] && _data[3] == _Type[3])
                 {
-                    p_FileStream.Read(m_TypeID, 0, 2);
+                    p_FileStream.Read(_typeID, 0, 2);
                     int _SizeOfName = p_FileStream.ReadByte();
                     int _nSizeOfName = (int) _SizeOfName;
                     if (_nSizeOfName > 0)
                     {
                         if ((_nSizeOfName % 2) != 0) { _SizeOfName = p_FileStream.ReadByte(); }
-                        m_Name = new byte[_nSizeOfName];
-                        p_FileStream.Read(m_Name, 0, _nSizeOfName);
+                        _name = new byte[_nSizeOfName];
+                        p_FileStream.Read(_name, 0, _nSizeOfName);
                     }
                     _SizeOfName = p_FileStream.ReadByte();
                     byte[] _CountByte = new byte[4];
@@ -413,7 +394,7 @@ namespace LocalVersionControlSystem
             #region RLE数据
             private void RleData(FileStream p_Stream)
             {
-                switch (m_HeaderInfo.ColorMode)
+                switch (m_HeaderInfo._colorMode)
                 {
                     case 3:  //RGB
                         LoadRLERGB(p_Stream);
@@ -422,20 +403,20 @@ namespace LocalVersionControlSystem
                         LoadRLECMYK(p_Stream);
                         break;
                     default:
-                        throw new Exception("RLE ColorMode =" + m_HeaderInfo.ColorMode.ToString());
+                        throw new Exception("RLE ColorMode =" + m_HeaderInfo._colorMode.ToString());
                 }
             }
 
             private void LoadRLERGB(FileStream p_Stream)
             {
-                int _Width = (int) m_HeaderInfo.Width;
-                int _Height = (int) m_HeaderInfo.Height;
+                int _Width = (int) m_HeaderInfo._width;
+                int _Height = (int) m_HeaderInfo._height;
                 m_PSDImage = new Bitmap(_Width, _Height, PixelFormat.Format24bppRgb);
                 BitmapData _PSDImageData = m_PSDImage.LockBits(new Rectangle(0, 0, m_PSDImage.Width, m_PSDImage.Height), ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
                 byte[] _ImageBytes = new byte[_PSDImageData.Stride * _PSDImageData.Height];
                 int _WriteIndex = 0;
                 int _EndIndex = _PSDImageData.Stride * _PSDImageData.Height;
-                p_Stream.Position += _Height * m_HeaderInfo.Channels * 2;
+                p_Stream.Position += _Height * m_HeaderInfo._channels * 2;
 
                 int _Count = _Width * _Height;
                 int _WrtieType = 0;
@@ -521,11 +502,11 @@ namespace LocalVersionControlSystem
             private void LoadRLECMYK(FileStream p_Stream)
             {
 
-                int _Width = (int) m_HeaderInfo.Width;
-                int _Height = (int) m_HeaderInfo.Height;
+                int _Width = (int) m_HeaderInfo._width;
+                int _Height = (int) m_HeaderInfo._height;
 
-                int _Count = _Width * _Height * (m_HeaderInfo.BitsPerPixel / 8) * m_HeaderInfo.Channels;
-                p_Stream.Position += _Height * m_HeaderInfo.Channels * 2;
+                int _Count = _Width * _Height * (m_HeaderInfo._bitsPerPixel / 8) * m_HeaderInfo._channels;
+                p_Stream.Position += _Height * m_HeaderInfo._channels * 2;
                 byte[] _ImageBytes = new byte[_Count];
 
                 int _WriteIndex = 0;
@@ -568,7 +549,7 @@ namespace LocalVersionControlSystem
                 double M;
                 double Y;
                 double K;
-                double _MaxColours = Math.Pow(2, m_HeaderInfo.BitsPerPixel);
+                double _MaxColours = Math.Pow(2, m_HeaderInfo._bitsPerPixel);
                 int _Size2 = _Size * 2;
                 int _Size3 = _Size * 3;
                 for (int i = 0; i != _PSDImageData.Height; i++)
@@ -593,7 +574,7 @@ namespace LocalVersionControlSystem
             #region RAW数据
             private void RawData(FileStream p_Stream)
             {
-                switch (m_HeaderInfo.ColorMode)
+                switch (m_HeaderInfo._colorMode)
                 {
                     case 2: //Index
                         LoadRAWIndex(p_Stream);
@@ -605,19 +586,19 @@ namespace LocalVersionControlSystem
                         LoadRAWCMYK(p_Stream);
                         return;
                     default:
-                        throw new Exception("RAW ColorMode =" + m_HeaderInfo.ColorMode.ToString());
+                        throw new Exception("RAW ColorMode =" + m_HeaderInfo._colorMode.ToString());
                 }
 
             }
 
             private void LoadRAWCMYK(FileStream p_Stream)
             {
-                int _Width = (int) m_HeaderInfo.Width;
-                int _Height = (int) m_HeaderInfo.Height;
+                int _Width = (int) m_HeaderInfo._width;
+                int _Height = (int) m_HeaderInfo._height;
                 m_PSDImage = new Bitmap(_Width, _Height, PixelFormat.Format24bppRgb);
                 BitmapData _PSDImageData = m_PSDImage.LockBits(new Rectangle(0, 0, m_PSDImage.Width, m_PSDImage.Height), ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
                 byte[] _WriteBytes = new byte[_PSDImageData.Stride * _PSDImageData.Height];
-                int _PerPixel = m_HeaderInfo.BitsPerPixel / 8;
+                int _PerPixel = m_HeaderInfo._bitsPerPixel / 8;
                 int _PixelsCount = _Width * _Height;
                 int _BytesCount = _PixelsCount * 4 * _PerPixel;
                 byte[] _ImageBytes = new byte[_BytesCount];
@@ -630,7 +611,7 @@ namespace LocalVersionControlSystem
                 double M;
                 double Y;
                 double K;
-                double _MaxColours = Math.Pow(2, m_HeaderInfo.BitsPerPixel);
+                double _MaxColours = Math.Pow(2, m_HeaderInfo._bitsPerPixel);
                 int _Size2 = _Size * 2;
                 int _Size3 = _Size * 3;
 
@@ -679,8 +660,8 @@ namespace LocalVersionControlSystem
             /// <param name="p_Stream"></param>
             private void LoadRAWIndex(FileStream p_Stream)
             {
-                int _Width = (int) m_HeaderInfo.Width;
-                int _Height = (int) m_HeaderInfo.Height;
+                int _Width = (int) m_HeaderInfo._width;
+                int _Height = (int) m_HeaderInfo._height;
                 m_PSDImage = new Bitmap(_Width, _Height, PixelFormat.Format8bppIndexed);
                 BitmapData _PSDImageData = m_PSDImage.LockBits(new Rectangle(0, 0, m_PSDImage.Width, m_PSDImage.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
                 byte[] _ImageBytes = new byte[_PSDImageData.Stride * _PSDImageData.Height];
@@ -711,14 +692,14 @@ namespace LocalVersionControlSystem
             /// <param name="p_Stream"></param>
             private void LoadRAWRGB(FileStream p_Stream)
             {
-                int _Width = (int) m_HeaderInfo.Width;
-                int _Height = (int) m_HeaderInfo.Height;
+                int _Width = (int) m_HeaderInfo._width;
+                int _Height = (int) m_HeaderInfo._height;
                 m_PSDImage = new Bitmap(_Width, _Height, PixelFormat.Format24bppRgb);
                 BitmapData _PSDImageData = m_PSDImage.LockBits(new Rectangle(0, 0, m_PSDImage.Width, m_PSDImage.Height), ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
                 byte[] _ImageBytes = new byte[_PSDImageData.Stride * _PSDImageData.Height];
 
                 int _PixelsCount = _Width * _Height;
-                int _BytesCount = _PixelsCount * 3 * (m_HeaderInfo.BitsPerPixel / 8);
+                int _BytesCount = _PixelsCount * 3 * (m_HeaderInfo._bitsPerPixel / 8);
                 byte[] _Data = new byte[_BytesCount];
                 p_Stream.Read(_Data, 0, _BytesCount);
 
@@ -728,10 +709,10 @@ namespace LocalVersionControlSystem
                 int _ReadIndex = 0;
                 int _WriteIndex = 0;
 
-                if (m_HeaderInfo.BitsPerPixel == 16)
+                if (m_HeaderInfo._bitsPerPixel == 16)
                 {
-                    _Green *= m_HeaderInfo.BitsPerPixel / 8;
-                    _Blue *= m_HeaderInfo.BitsPerPixel / 8;
+                    _Green *= m_HeaderInfo._bitsPerPixel / 8;
+                    _Blue *= m_HeaderInfo._bitsPerPixel / 8;
                 }
 
                 for (int i = 0; i != _Height; i++)
@@ -742,7 +723,7 @@ namespace LocalVersionControlSystem
                         _ImageBytes[(z * 3) + 2 + _WriteIndex] = _Data[_ReadIndex + _Red];
                         _ImageBytes[(z * 3) + 1 + _WriteIndex] = _Data[_ReadIndex + _Green];
                         _ImageBytes[(z * 3) + _WriteIndex] = _Data[_ReadIndex + _Blue];
-                        _ReadIndex += m_HeaderInfo.BitsPerPixel / 8;
+                        _ReadIndex += m_HeaderInfo._bitsPerPixel / 8;
                     }
                 }
                 Marshal.Copy(_ImageBytes, 0, _PSDImageData.Scan0, _ImageBytes.Length);
@@ -779,7 +760,7 @@ namespace LocalVersionControlSystem
         }
 
         private PSDHead m_Head;
-        private ColorModel m_ColorModel;
+        private PSDColorMode m_ColorModel;
         private IList<BIM> m_8BIMList = new List<BIM>();
         private LayerMaskInfo m_LayerMaskInfo;
         private ImageData m_ImageData;
@@ -791,96 +772,22 @@ namespace LocalVersionControlSystem
             byte[] _HeadByte = new byte[26];
             _PSD.Read(_HeadByte, 0, 26);
             m_Head = new PSDHead(_HeadByte);
-            m_ColorModel = new ColorModel(_PSD);
+            m_ColorModel = new PSDColorMode(_PSD);
 
             long _ReadCount = _PSD.Position;
             while (true)
             {
                 BIM _Bim = new BIM(_PSD);
-                if (!_Bim.Read || _PSD.Position - _ReadCount >= m_ColorModel.BIMSize) break;
+                if (!_Bim.Read || _PSD.Position - _ReadCount >= m_ColorModel._bIMSize) break;
                 m_8BIMList.Add(_Bim);
             }
             m_LayerMaskInfo = new LayerMaskInfo(_PSD);
             m_ImageData = new ImageData(_PSD, m_Head);
-            if (m_Head.ColorMode == 2) m_ImageData.PSDImage.Palette = m_ColorModel.ColorData;
+            if (m_Head._colorMode == 2) m_ImageData.PSDImage.Palette = m_ColorModel._colorData;
             _PSD.Close();
         }
 
-        public PSDHelper()
-        {
-            NewPsd();
-        }
-
-        public void NewPsd()
-        {
-            m_Head = new PSDHead(new byte[] { 0x38, 0x42, 0x50, 0x53, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x01, 0x2C, 0x00, 0x00, 0x01, 0xB4, 0x00, 0x08, 0x00, 0x03 });
-            m_ColorModel = new ColorModel();
-            m_ImageData = new ImageData();
-            m_LayerMaskInfo = new LayerMaskInfo();
-        }
-
-        /// <summary>
-        /// 保存成PSD 注意这里保存成PSD文件的BIM信息是没用的.如果你用该类打开PSD文件.如果保存到原文件上会丢失Photoshop的设置
-        /// </summary>
-        /// <param name="p_FileFullName">文件路径</param>
-        public void Save(string p_FileFullName)
-        {
-            if (PSDImage != null)
-            {
-                Image _SetImage = PSDImage;
-                NewPsd();
-                PSDImage = (Bitmap) _SetImage;      //保存需要重新在载
-                int _Width = PSDImage.Width;
-                int _Height = PSDImage.Height;
-
-                m_Head.Height = (uint) _Height;
-                m_Head.Width = (uint) _Width;
-
-                byte[] _Bim = new byte[] { 0x38, 0x42, 0x49, 0x4D, 0x03, 0xED, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x96, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x96, 0x00, 0x00, 0x00, 0x01, 0x00, 0x05, 0x38, 0x42, 0x49, 0x4D, 0x03, 0xF3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38, 0x42, 0x49, 0x4D, 0x27, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 };
-                m_ColorModel.BIMSize = (uint) _Bim.Length;
-
-                FileStream _SaveFile = new FileStream(p_FileFullName, FileMode.Create, FileAccess.Write);
-                byte[] _Bytes = m_Head.GetBytes();
-                _SaveFile.Write(_Bytes, 0, _Bytes.Length);
-                _Bytes = m_ColorModel.GetBytes();
-                _SaveFile.Write(_Bytes, 0, _Bytes.Length);
-                _SaveFile.Write(_Bim, 0, _Bim.Length);
-                _SaveFile.Write(new byte[2], 0, 2);
-                _Bytes = m_LayerMaskInfo.GetBytes();
-                _SaveFile.Write(_Bytes, 0, _Bytes.Length);
-                Bitmap _Bitmap = new Bitmap(_Width, _Height, PixelFormat.Format24bppRgb);
-                Graphics _Graphics = Graphics.FromImage(_Bitmap);
-                _Graphics.DrawImage(PSDImage, 0, 0, _Width, _Height);
-                _Graphics.Dispose();
-
-                BitmapData _SaveData = _Bitmap.LockBits(new Rectangle(0, 0, _Width, _Height), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
-                byte[] _ReadByte = new byte[_SaveData.Stride * _Height];
-                Marshal.Copy(_SaveData.Scan0, _ReadByte, 0, _ReadByte.Length);
-                byte[] _WriteByte = new byte[_Bitmap.Width * _Bitmap.Height * 3];
-                int _Size = _Width * _Height;
-                int _Size2 = _Size * 2;
-                for (int i = 0; i != _Height; i++)
-                {
-                    int _Index = i * _SaveData.Stride;
-                    int _WriteIndex = i * _Width;
-                    for (int z = 0; z != _Width; z++)
-                    {
-                        _WriteByte[_WriteIndex + z] = _ReadByte[_Index + (z * 3) + 2];
-                        _WriteByte[_WriteIndex + _Size + z] = _ReadByte[_Index + (z * 3) + 1];
-                        _WriteByte[_WriteIndex + _Size2 + z] = _ReadByte[_Index + (z * 3) + 0];
-                    }
-                }
-                _Bitmap.UnlockBits(_SaveData);
-                _Bitmap.Dispose();
-
-                _SaveFile.Write(_WriteByte, 0, _WriteByte.Length);
-                _SaveFile.Close();
-            }
-        }
-
-        /// <summary>
-        /// PSD图形
-        /// </summary>
+        //Image
         public Bitmap PSDImage
         {
             get { return m_ImageData.PSDImage; }
