@@ -7,13 +7,14 @@ using System.Drawing.Imaging;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.IO;
+using System.Security.Cryptography;
 
 namespace LocalVersionControlSystem.Helper
 {
     public class PSDHelper
     {
         //PSD file part 1: Head
-        private class PSDHead
+        private class Head
         {
             //Length of head is 26
             private byte[] _headBytes = new byte[26];
@@ -25,7 +26,7 @@ namespace LocalVersionControlSystem.Helper
             }
 
             //Version
-            public byte _version
+            public byte Version
             {
                 get
                 {
@@ -38,7 +39,7 @@ namespace LocalVersionControlSystem.Helper
             }
 
             //Number of channels
-            public ushort _channels
+            public ushort Channels
             {
                 get
                 {
@@ -53,7 +54,7 @@ namespace LocalVersionControlSystem.Helper
             }
 
             //Height
-            public uint _height
+            public uint Height
             {
                 get
                 {
@@ -70,7 +71,7 @@ namespace LocalVersionControlSystem.Helper
             }
 
             //Width
-            public uint _width
+            public uint Width
             {
                 get
                 {
@@ -87,7 +88,7 @@ namespace LocalVersionControlSystem.Helper
             }
 
             //Number of bits per channel
-            public ushort _bitsPerPixel
+            public ushort BitsPerPixel
             {
                 get
                 {
@@ -103,7 +104,7 @@ namespace LocalVersionControlSystem.Helper
             }
 
             //Color mode
-            public ushort _colorMode
+            public ushort ColorMode
             {
                 get
                 {
@@ -117,22 +118,27 @@ namespace LocalVersionControlSystem.Helper
                 }
             }
 
-            public PSDHead(byte[] p_Data)
+            public Head(FileStream fs)
             {
-                _headBytes = p_Data;
+                fs.Read(_headBytes, 0, 26);
+            }
+
+            public Head()
+            {
+
             }
         }
 
         //PSD file part 2: ColorMode
-        private class PSDColorMode
+        private class ColorMode
         {
             //The size of color data in bytes
             private byte[] _sizeBytes = new byte[4];
             //Only color data in bytes
-            private byte[] _colorModeBytes;
+            private byte[] _colorModeBytes = Array.Empty<byte>();
 
             //The size of color data in uint
-            public uint _bIMSize
+            public uint BIMSize
             {
                 get
                 {
@@ -149,7 +155,7 @@ namespace LocalVersionControlSystem.Helper
             }
 
             //Color data
-            public ColorPalette _colorData
+            public ColorPalette ColorData
             {
                 get
                 {
@@ -174,26 +180,32 @@ namespace LocalVersionControlSystem.Helper
                 }
             }
 
-            public PSDColorMode(FileStream fs)
+            public ColorMode(FileStream fs)
             {
                 byte[] countByte = new byte[4];
                 fs.Read(countByte, 0, 4);
-                _sizeBytes = countByte;
                 Array.Reverse(countByte);
                 int count = BitConverter.ToInt32(countByte, 0);
                 _colorModeBytes = new byte[count];
                 if (count != 0)
                     fs.Read(_colorModeBytes, 0, count);
+                fs.Read(_sizeBytes, 0, 4);
             }
         }
 
         //PSD file part 3: Image resources
         private class BIM
         {
-            private byte[] _data = new byte[] { 0x38, 0x42, 0x49, 0x4D };
+            //8BIM
+            private byte[] _signature = new byte[] { 0x38, 0x42, 0x49, 0x4D };
             private byte[] _typeID = new byte[2];
             private byte[] _name = Array.Empty<byte>();
+            private byte[] _dataLength = Array.Empty<byte>();
+            private byte[] _data = Array.Empty<byte>();
 
+            public bool _isRead { get; set; } = false;
+
+            //Get Type ID
             public ushort TypeID
             {
                 get
@@ -202,596 +214,595 @@ namespace LocalVersionControlSystem.Helper
                 }
                 set
                 {
-                    byte[] _Value = BitConverter.GetBytes(value);
-                    _typeID[0] = _Value[1];
-                    _typeID[1] = _Value[0];
+                    byte[] valueBytes = BitConverter.GetBytes(value);
+                    _typeID[0] = valueBytes[1];
+                    _typeID[1] = valueBytes[0];
                 }
             }
 
-            public byte[] m_Value;
-
-            public BIM(FileStream p_FileStream)
+            public BIM(FileStream fs)
             {
-                byte[] _Type = new byte[4];
-                p_FileStream.Read(_Type, 0, 4);
-                if (_data[0] == _Type[0] && _data[1] == _Type[1] && _data[2] == _Type[2] && _data[3] == _Type[3])
+                byte[] signature = new byte[4];
+                fs.Read(signature, 0, 4);
+                if (_signature[0] == signature[0] && _signature[1] == signature[1] && _signature[2] == signature[2] && _signature[3] == signature[3])
                 {
-                    p_FileStream.Read(_typeID, 0, 2);
-                    int _SizeOfName = p_FileStream.ReadByte();
-                    int _nSizeOfName = (int) _SizeOfName;
-                    if (_nSizeOfName > 0)
+                    fs.Read(_typeID, 0, 2);
+
+                    int size = fs.ReadByte();
+                    int nameLength = (int) size;
+                    if (nameLength > 0)
                     {
-                        if ((_nSizeOfName % 2) != 0) { _SizeOfName = p_FileStream.ReadByte(); }
-                        _name = new byte[_nSizeOfName];
-                        p_FileStream.Read(_name, 0, _nSizeOfName);
+                        if ((nameLength % 2) != 0)
+                            size = fs.ReadByte();
+                        _name = new byte[nameLength];
+                        fs.Read(_name, 0, nameLength);
                     }
-                    _SizeOfName = p_FileStream.ReadByte();
-                    byte[] _CountByte = new byte[4];
-                    p_FileStream.Read(_CountByte, 0, 4);
-                    Array.Reverse(_CountByte);
-                    int _DataCount = BitConverter.ToInt32(_CountByte, 0);
-                    if (_DataCount % 2 != 0) _DataCount++;
-                    m_Value = new byte[_DataCount];
-                    p_FileStream.Read(m_Value, 0, _DataCount);
-                    m_Read = true;
+                    size = fs.ReadByte();
+
+                    _dataLength = new byte[4];
+                    fs.Read(_dataLength, 0, 4);
+                    byte[] temp = _dataLength;
+                    Array.Reverse(temp);
+                    int dataLength = BitConverter.ToInt32(temp, 0);
+                    if (dataLength % 2 != 0)
+                        dataLength++;
+
+                    _data = new byte[dataLength];
+                    fs.Read(_data, 0, dataLength);
+                    _isRead = true;
                 }
             }
 
-            private bool m_Read = false;
-
-            public bool Read
+            public BIM()
             {
-                get { return m_Read; }
-                set { m_Read = value; }
+
             }
 
+            //For BIM with type = 1005, load ResolutionInfo
             #region Type=1005
             public ushort hRes
             {
                 get
                 {
-                    return BitConverter.ToUInt16(new byte[] { m_Value[1], m_Value[0] }, 0);
+                    return BitConverter.ToUInt16(new byte[] { _data[1], _data[0] }, 0);
                 }
                 set
                 {
                     byte[] _Value = BitConverter.GetBytes(value);
-                    m_Value[0] = _Value[1];
-                    m_Value[1] = _Value[0];
+                    _data[0] = _Value[1];
+                    _data[1] = _Value[0];
                 }
             }
             public uint hResUnit
             {
                 get
                 {
-                    return BitConverter.ToUInt32(new byte[] { m_Value[5], m_Value[4], m_Value[3], m_Value[2] }, 0);
+                    return BitConverter.ToUInt32(new byte[] { _data[5], _data[4], _data[3], _data[2] }, 0);
                 }
                 set
                 {
                     byte[] _Value = BitConverter.GetBytes(value);
-                    m_Value[2] = _Value[3];
-                    m_Value[3] = _Value[2];
-                    m_Value[4] = _Value[1];
-                    m_Value[5] = _Value[0];
+                    _data[2] = _Value[3];
+                    _data[3] = _Value[2];
+                    _data[4] = _Value[1];
+                    _data[5] = _Value[0];
                 }
             }
             public ushort widthUnit
             {
                 get
                 {
-                    return BitConverter.ToUInt16(new byte[] { m_Value[7], m_Value[6] }, 0);
+                    return BitConverter.ToUInt16(new byte[] { _data[7], _data[6] }, 0);
                 }
                 set
                 {
                     byte[] _Value = BitConverter.GetBytes(value);
-                    m_Value[6] = _Value[1];
-                    m_Value[7] = _Value[0];
+                    _data[6] = _Value[1];
+                    _data[7] = _Value[0];
                 }
             }
             public ushort vRes
             {
                 get
                 {
-                    return BitConverter.ToUInt16(new byte[] { m_Value[9], m_Value[8] }, 0);
+                    return BitConverter.ToUInt16(new byte[] { _data[9], _data[8] }, 0);
                 }
                 set
                 {
                     byte[] _Value = BitConverter.GetBytes(value);
-                    m_Value[8] = _Value[1];
-                    m_Value[9] = _Value[0];
+                    _data[8] = _Value[1];
+                    _data[9] = _Value[0];
                 }
             }
             public uint vResUnit
             {
                 get
                 {
-                    return BitConverter.ToUInt32(new byte[] { m_Value[13], m_Value[12], m_Value[11], m_Value[10] }, 0);
+                    return BitConverter.ToUInt32(new byte[] { _data[13], _data[12], _data[11], _data[10] }, 0);
                 }
                 set
                 {
                     byte[] _Value = BitConverter.GetBytes(value);
-                    m_Value[10] = _Value[3];
-                    m_Value[11] = _Value[2];
-                    m_Value[12] = _Value[1];
-                    m_Value[13] = _Value[0];
+                    _data[10] = _Value[3];
+                    _data[11] = _Value[2];
+                    _data[12] = _Value[1];
+                    _data[13] = _Value[0];
                 }
             }
             public ushort heightUnit
             {
                 get
                 {
-                    return BitConverter.ToUInt16(new byte[] { m_Value[15], m_Value[14] }, 0);
+                    return BitConverter.ToUInt16(new byte[] { _data[15], _data[14] }, 0);
                 }
                 set
                 {
                     byte[] _Value = BitConverter.GetBytes(value);
-                    m_Value[14] = _Value[1];
-                    m_Value[15] = _Value[0];
+                    _data[14] = _Value[1];
+                    _data[15] = _Value[0];
                 }
             }
             #endregion
 
         }
+
+        //PSD file part 4: Layer and mask info
         private class LayerMaskInfo
         {
 
-            public byte[] m_Data = new byte[0];
+            public byte[] _layerMaskInfoBytes = Array.Empty<byte>();
 
             public LayerMaskInfo(FileStream p_Stream)
             {
-                byte[] _Count = new byte[4];
-                p_Stream.Read(_Count, 0, 4);
-                Array.Reverse(_Count);
+                byte[] lengthBytes = new byte[4];
+                p_Stream.Read(lengthBytes, 0, 4);
+                Array.Reverse(lengthBytes);
 
-                int _ReadCount = BitConverter.ToInt32(_Count, 0);
+                int length = BitConverter.ToInt32(lengthBytes, 0);
 
-                m_Data = new byte[_ReadCount];
-                if (_ReadCount != 0) p_Stream.Read(m_Data, 0, _ReadCount);
+                _layerMaskInfoBytes = new byte[length];
+                if (length != 0) p_Stream.Read(_layerMaskInfoBytes, 0, length);
             }
 
             public LayerMaskInfo()
             {
+
             }
 
             public byte[] GetBytes()
             {
-                MemoryStream _Memory = new MemoryStream();
-                byte[] _Value = BitConverter.GetBytes(m_Data.Length);
-                Array.Reverse(_Value);
-                _Memory.Write(_Value, 0, _Value.Length);
-                if (m_Data.Length != 0) _Memory.Write(m_Data, 0, m_Data.Length);
+                using MemoryStream _Memory = new MemoryStream();
+                byte[] lengthBytes = BitConverter.GetBytes(_layerMaskInfoBytes.Length);
+                Array.Reverse(lengthBytes);
+                _Memory.Write(lengthBytes, 0, lengthBytes.Length);
+                if (_layerMaskInfoBytes.Length != 0) _Memory.Write(_layerMaskInfoBytes, 0, _layerMaskInfoBytes.Length);
                 return _Memory.ToArray();
             }
         }
+
+        //PSD file part 5: Image data
         private class ImageData
         {
-            private ushort p_Type = 0;
+            private ushort _type = 0;
 
-            private PSDHead m_HeaderInfo;
+            private Head _head;
 
-            public ImageData()
+            public Bitmap PSDImage { get; set; }
+
+            public ImageData(FileStream fs, Head head)
             {
-            }
-            public ImageData(FileStream p_FileStream, PSDHead p_HeaderInfo)
-            {
-                m_HeaderInfo = p_HeaderInfo;
-                byte[] _ShortBytes = new byte[2];
-                p_FileStream.Read(_ShortBytes, 0, 2);
-                Array.Reverse(_ShortBytes);
-                p_Type = BitConverter.ToUInt16(_ShortBytes, 0);
-                switch (p_Type)
+                _head = head;
+                PSDImage = new Bitmap(1, 1);
+                byte[] typeBytes = new byte[2];
+                fs.Read(typeBytes, 0, 2);
+                Array.Reverse(typeBytes);
+                _type = BitConverter.ToUInt16(typeBytes, 0);
+                switch (_type)
                 {
                     case 0: //RAW DATA
-                        RawData(p_FileStream);
+                        RawData(fs);
                         break;
                     case 1:
-                        RleData(p_FileStream);
+                        RleData(fs);
                         break;
                     default:
-                        throw new Exception("Type =" + p_Type.ToString());
+                        throw new Exception("Type =" + _type);
                 }
             }
 
-            #region RLE数据
-            private void RleData(FileStream p_Stream)
+            #region RAW data
+            private void RawData(FileStream fs)
             {
-                switch (m_HeaderInfo._colorMode)
+                switch (_head.ColorMode)
+                {
+                    case 2: //Index
+                        LoadRAWIndex(fs);
+                        return;
+                    case 3:  //RGB   
+                        LoadRAWRGB(fs);
+                        return;
+                    case 4: //CMYK
+                        LoadRAWCMYK(fs);
+                        return;
+                    default:
+                        throw new Exception("RAW ColorMode =" + _head.ColorMode);
+                }
+            }
+
+            private void LoadRAWCMYK(FileStream fs)
+            {
+                int width = (int) _head.Width;
+                int height = (int) _head.Height;
+                PSDImage = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+                BitmapData pSDImageData = PSDImage.LockBits(new Rectangle(0, 0, PSDImage.Width, PSDImage.Height), ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
+                byte[] writeBytes = new byte[pSDImageData.Stride * pSDImageData.Height];
+                int perPixel = _head.BitsPerPixel / 8;
+                int pixelsCount = width * height;
+                int bytesCount = pixelsCount * 4 * perPixel;
+                byte[] imageBytes = new byte[bytesCount];
+                fs.Read(imageBytes, 0, bytesCount);
+
+                int starIndex = 0;
+                int index = 0;
+                int size = width * height;
+                double c;
+                double m;
+                double y;
+                double k;
+                double maxColours = Math.Pow(2, _head.BitsPerPixel);
+                int size2 = size * 2;
+                int size3 = size * 3;
+
+                if (perPixel == 2)
+                {
+                    size *= 2;
+                    size2 *= 2;
+                    size3 *= 2;
+                }
+                for (int i = 0; i != pSDImageData.Height; i++)
+                {
+                    starIndex = pSDImageData.Stride * i;
+
+                    index = i * width;
+                    if (perPixel == 2) index *= 2;
+                    for (int z = 0; z != pSDImageData.Width; z++)
+                    {
+                        switch (perPixel)
+                        {
+                            case 1:
+                                c = 1.0 - (double) imageBytes[index + z] / maxColours;
+                                m = 1.0 - (double) imageBytes[index + z + size] / maxColours;
+                                y = 1.0 - (double) imageBytes[index + z + size2] / maxColours;
+                                k = 1.0 - (double) imageBytes[index + z + size3] / maxColours;
+                                ConvertCMYKToRGB(c, m, y, k, writeBytes, starIndex + z * 3);
+                                break;
+                            case 2:
+                                c = 1.0 - (double) BitConverter.ToUInt16(imageBytes, index + z * 2) / maxColours;
+                                m = 1.0 - (double) BitConverter.ToUInt16(imageBytes, index + z * 2 + size) / maxColours;
+                                y = 1.0 - (double) BitConverter.ToUInt16(imageBytes, index + z * 2 + size2) / maxColours;
+                                k = 1.0 - (double) BitConverter.ToUInt16(imageBytes, index + z * 2 + size3) / maxColours;
+                                ConvertCMYKToRGB(c, m, y, k, writeBytes, starIndex + z * 3);
+                                break;
+                        }
+
+
+                    }
+                }
+                Marshal.Copy(writeBytes, 0, pSDImageData.Scan0, writeBytes.Length);
+                PSDImage.UnlockBits(pSDImageData);
+            }
+
+            private void LoadRAWIndex(FileStream fs)
+            {
+                int width = (int) _head.Width;
+                int height = (int) _head.Height;
+                PSDImage = new Bitmap(width, height, PixelFormat.Format8bppIndexed);
+                BitmapData pSDImageData = PSDImage.LockBits(new Rectangle(0, 0, PSDImage.Width, PSDImage.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
+                byte[] imageBytes = new byte[pSDImageData.Stride * pSDImageData.Height];
+
+                int pixelsCount = width * height;
+                byte[] data = new byte[pixelsCount];
+                fs.Read(data, 0, pixelsCount);
+
+                int readIndex = 0;
+                int writeIndex = 0;
+                for (int i = 0; i != height; i++)
+                {
+                    writeIndex = i * pSDImageData.Stride;
+                    for (int z = 0; z != width; z++)
+                    {
+                        imageBytes[z + writeIndex] = data[readIndex];
+                        readIndex++;
+                    }
+                }
+
+                Marshal.Copy(imageBytes, 0, pSDImageData.Scan0, imageBytes.Length);
+                PSDImage.UnlockBits(pSDImageData);
+            }
+
+            private void LoadRAWRGB(FileStream fs)
+            {
+                int _Width = (int) _head.Width;
+                int _Height = (int) _head.Height;
+                PSDImage = new Bitmap(_Width, _Height, PixelFormat.Format24bppRgb);
+                BitmapData pSDImageData = PSDImage.LockBits(new Rectangle(0, 0, PSDImage.Width, PSDImage.Height), ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
+                byte[] imageBytes = new byte[pSDImageData.Stride * pSDImageData.Height];
+
+                int pixelsCount = _Width * _Height;
+                int bytesCount = pixelsCount * 3 * (_head.BitsPerPixel / 8);
+                byte[] _Data = new byte[bytesCount];
+                fs.Read(_Data, 0, bytesCount);
+
+                int red = 0;
+                int green = pixelsCount;
+                int blue = pixelsCount + pixelsCount;
+                int readIndex = 0;
+                int writeIndex = 0;
+
+                if (_head.BitsPerPixel == 16)
+                {
+                    green *= _head.BitsPerPixel / 8;
+                    blue *= _head.BitsPerPixel / 8;
+                }
+
+                for (int i = 0; i != _Height; i++)
+                {
+                    writeIndex = i * pSDImageData.Stride;
+                    for (int z = 0; z != _Width; z++)
+                    {
+                        imageBytes[(z * 3) + 2 + writeIndex] = _Data[readIndex + red];
+                        imageBytes[(z * 3) + 1 + writeIndex] = _Data[readIndex + green];
+                        imageBytes[(z * 3) + writeIndex] = _Data[readIndex + blue];
+                        readIndex += _head.BitsPerPixel / 8;
+                    }
+                }
+                Marshal.Copy(imageBytes, 0, pSDImageData.Scan0, imageBytes.Length);
+                PSDImage.UnlockBits(pSDImageData);
+            }
+            #endregion
+
+            #region RLE Data
+            private void RleData(FileStream fs)
+            {
+                switch (_head.ColorMode)
                 {
                     case 3:  //RGB
-                        LoadRLERGB(p_Stream);
+                        LoadRLERGB(fs);
                         break;
                     case 4:  //CMYK
-                        LoadRLECMYK(p_Stream);
+                        LoadRLECMYK(fs);
                         break;
                     default:
-                        throw new Exception("RLE ColorMode =" + m_HeaderInfo._colorMode.ToString());
+                        throw new Exception("RLE ColorMode =" + _head.ColorMode);
                 }
             }
 
-            private void LoadRLERGB(FileStream p_Stream)
+            private void LoadRLERGB(FileStream fs)
             {
-                int _Width = (int) m_HeaderInfo._width;
-                int _Height = (int) m_HeaderInfo._height;
-                m_PSDImage = new Bitmap(_Width, _Height, PixelFormat.Format24bppRgb);
-                BitmapData _PSDImageData = m_PSDImage.LockBits(new Rectangle(0, 0, m_PSDImage.Width, m_PSDImage.Height), ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
-                byte[] _ImageBytes = new byte[_PSDImageData.Stride * _PSDImageData.Height];
-                int _WriteIndex = 0;
-                int _EndIndex = _PSDImageData.Stride * _PSDImageData.Height;
-                p_Stream.Position += _Height * m_HeaderInfo._channels * 2;
+                int width = (int) _head.Width;
+                int height = (int) _head.Height;
+                PSDImage = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+                BitmapData pSDImageData = PSDImage.LockBits(new Rectangle(0, 0, PSDImage.Width, PSDImage.Height), ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
+                byte[] imageBytes = new byte[pSDImageData.Stride * pSDImageData.Height];
+                int writeIndex = 0;
+                int endIndex = pSDImageData.Stride * pSDImageData.Height;
+                fs.Position += height * _head.Channels * 2;
 
-                int _Count = _Width * _Height;
-                int _WrtieType = 0;
-                int _HeightIndex = 0;
-                int _WidthIndex = 0;
-                int _Index = 0;
+                int count = width * height;
+                int wrtieType = 0;
+                int heightIndex = 0;
+                int widthIndex = 0;
+                int index = 0;
 
                 while (true)
                 {
-                    if (_WriteIndex > _EndIndex - 1) break;
-                    byte _Read = (byte) p_Stream.ReadByte();
-                    if (_Read == 128) continue; //Erroe
-                    if (_Read > 128)
+                    if (writeIndex > endIndex - 1) break;
+                    byte read = (byte) fs.ReadByte();
+                    if (read == 128) continue; //Erroe
+                    if (read > 128)
                     {
-                        _Read ^= 0x0FF;
-                        _Read += 2;
-                        byte _ByteValue = (byte) p_Stream.ReadByte();
+                        read ^= 0x0FF;
+                        read += 2;
+                        byte _ByteValue = (byte) fs.ReadByte();
 
-                        for (byte i = 0; i != _Read; i++)
+                        for (byte i = 0; i != read; i++)
                         {
-                            _WrtieType = _WriteIndex / _Count;
-                            switch (_WrtieType)
+                            wrtieType = writeIndex / count;
+                            switch (wrtieType)
                             {
                                 case 0: //Red
-                                    _HeightIndex = _WriteIndex / _Width;
-                                    _WidthIndex = _WriteIndex % _Width;
-                                    _Index = (_PSDImageData.Stride * _HeightIndex) + (_WidthIndex * 3) + 2;
-                                    _ImageBytes[_Index] = _ByteValue;
+                                    heightIndex = writeIndex / width;
+                                    widthIndex = writeIndex % width;
+                                    index = (pSDImageData.Stride * heightIndex) + (widthIndex * 3) + 2;
+                                    imageBytes[index] = _ByteValue;
                                     break;
                                 case 1: //Green
-                                    _HeightIndex = (_WriteIndex - _Count) / _Width;
-                                    _WidthIndex = (_WriteIndex - _Count) % _Width;
-                                    _Index = (_PSDImageData.Stride * _HeightIndex) + (_WidthIndex * 3) + 1;
-                                    _ImageBytes[_Index] = _ByteValue;
+                                    heightIndex = (writeIndex - count) / width;
+                                    widthIndex = (writeIndex - count) % width;
+                                    index = (pSDImageData.Stride * heightIndex) + (widthIndex * 3) + 1;
+                                    imageBytes[index] = _ByteValue;
                                     break;
                                 case 2:
-                                    _HeightIndex = (_WriteIndex - _Count - _Count) / _Width;
-                                    _WidthIndex = (_WriteIndex - _Count - _Count) % _Width;
-                                    _Index = (_PSDImageData.Stride * _HeightIndex) + (_WidthIndex * 3);
-                                    _ImageBytes[_Index] = _ByteValue;
+                                    heightIndex = (writeIndex - count - count) / width;
+                                    widthIndex = (writeIndex - count - count) % width;
+                                    index = (pSDImageData.Stride * heightIndex) + (widthIndex * 3);
+                                    imageBytes[index] = _ByteValue;
                                     break;
                             }
                             //_ImageBytes[_WriteIndex] = _ByteValue;
-                            _WriteIndex++;
+                            writeIndex++;
                         }
                     }
                     else
                     {
-                        _Read++;
-                        for (byte i = 0; i != _Read; i++)
+                        read++;
+                        for (byte i = 0; i != read; i++)
                         {
-                            _WrtieType = _WriteIndex / _Count;
-                            switch (_WrtieType)
+                            wrtieType = writeIndex / count;
+                            switch (wrtieType)
                             {
                                 case 0: //Red
-                                    _HeightIndex = _WriteIndex / _Width;
-                                    _WidthIndex = _WriteIndex % _Width;
-                                    _Index = (_PSDImageData.Stride * _HeightIndex) + (_WidthIndex * 3) + 2;
-                                    _ImageBytes[_Index] = (byte) p_Stream.ReadByte();
+                                    heightIndex = writeIndex / width;
+                                    widthIndex = writeIndex % width;
+                                    index = (pSDImageData.Stride * heightIndex) + (widthIndex * 3) + 2;
+                                    imageBytes[index] = (byte) fs.ReadByte();
                                     break;
                                 case 1: //Green
-                                    _HeightIndex = (_WriteIndex - _Count) / _Width;
-                                    _WidthIndex = (_WriteIndex - _Count) % _Width;
-                                    _Index = (_PSDImageData.Stride * _HeightIndex) + (_WidthIndex * 3) + 1;
-                                    _ImageBytes[_Index] = (byte) p_Stream.ReadByte();
+                                    heightIndex = (writeIndex - count) / width;
+                                    widthIndex = (writeIndex - count) % width;
+                                    index = (pSDImageData.Stride * heightIndex) + (widthIndex * 3) + 1;
+                                    imageBytes[index] = (byte) fs.ReadByte();
                                     break;
                                 case 2:
-                                    _HeightIndex = (_WriteIndex - _Count - _Count) / _Width;
-                                    _WidthIndex = (_WriteIndex - _Count - _Count) % _Width;
-                                    _Index = (_PSDImageData.Stride * _HeightIndex) + (_WidthIndex * 3);
-                                    _ImageBytes[_Index] = (byte) p_Stream.ReadByte();
+                                    heightIndex = (writeIndex - count - count) / width;
+                                    widthIndex = (writeIndex - count - count) % width;
+                                    index = (pSDImageData.Stride * heightIndex) + (widthIndex * 3);
+                                    imageBytes[index] = (byte) fs.ReadByte();
                                     break;
                             }
                             //_ImageBytes[_WriteIndex] = (byte)p_Stream.ReadByte();
-                            _WriteIndex++;
+                            writeIndex++;
                         }
                     }
                 }
-                Marshal.Copy(_ImageBytes, 0, _PSDImageData.Scan0, _ImageBytes.Length);
-                m_PSDImage.UnlockBits(_PSDImageData);
+                Marshal.Copy(imageBytes, 0, pSDImageData.Scan0, imageBytes.Length);
+                PSDImage.UnlockBits(pSDImageData);
             }
 
-            private void LoadRLECMYK(FileStream p_Stream)
+            private void LoadRLECMYK(FileStream fs)
             {
 
-                int _Width = (int) m_HeaderInfo._width;
-                int _Height = (int) m_HeaderInfo._height;
+                int width = (int) _head.Width;
+                int height = (int) _head.Height;
 
-                int _Count = _Width * _Height * (m_HeaderInfo._bitsPerPixel / 8) * m_HeaderInfo._channels;
-                p_Stream.Position += _Height * m_HeaderInfo._channels * 2;
-                byte[] _ImageBytes = new byte[_Count];
+                int count = width * height * (_head.BitsPerPixel / 8) * _head.Channels;
+                fs.Position += height * _head.Channels * 2;
+                byte[] imageBytes = new byte[count];
 
-                int _WriteIndex = 0;
+                int writeIndex = 0;
                 while (true)
                 {
-                    if (_WriteIndex > _Count - 1) break;
-                    byte _Read = (byte) p_Stream.ReadByte();
-                    if (_Read == 128) continue; //Erroe
-                    if (_Read > 128)
+                    if (writeIndex > count - 1) break;
+                    byte read = (byte) fs.ReadByte();
+                    if (read == 128) continue; //Erroe
+                    if (read > 128)
                     {
-                        _Read ^= 0x0FF;
-                        _Read += 2;
-                        byte _ByteValue = (byte) p_Stream.ReadByte();
+                        read ^= 0x0FF;
+                        read += 2;
+                        byte byteValue = (byte) fs.ReadByte();
 
-                        for (byte i = 0; i != _Read; i++)
+                        for (byte i = 0; i != read; i++)
                         {
-                            _ImageBytes[_WriteIndex] = _ByteValue;
-                            _WriteIndex++;
+                            imageBytes[writeIndex] = byteValue;
+                            writeIndex++;
                         }
                     }
                     else
                     {
-                        _Read++;
-                        for (byte i = 0; i != _Read; i++)
+                        read++;
+                        for (byte i = 0; i != read; i++)
                         {
-                            _ImageBytes[_WriteIndex] = (byte) p_Stream.ReadByte();
-                            _WriteIndex++;
+                            imageBytes[writeIndex] = (byte) fs.ReadByte();
+                            writeIndex++;
                         }
                     }
                 }
 
-                m_PSDImage = new Bitmap(_Width, _Height, PixelFormat.Format24bppRgb);
-                BitmapData _PSDImageData = m_PSDImage.LockBits(new Rectangle(0, 0, m_PSDImage.Width, m_PSDImage.Height), ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
-                byte[] _WriteBytes = new byte[_PSDImageData.Stride * _PSDImageData.Height];
+                PSDImage = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+                BitmapData pSDImageData = PSDImage.LockBits(new Rectangle(0, 0, PSDImage.Width, PSDImage.Height), ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
+                byte[] writeBytes = new byte[pSDImageData.Stride * pSDImageData.Height];
 
-                int _StarIndex = 0;
-                int _Index = 0;
-                int _Size = _Width * _Height;
-                double C;
-                double M;
-                double Y;
-                double K;
-                double _MaxColours = Math.Pow(2, m_HeaderInfo._bitsPerPixel);
-                int _Size2 = _Size * 2;
-                int _Size3 = _Size * 3;
-                for (int i = 0; i != _PSDImageData.Height; i++)
+                int starIndex = 0;
+                int index = 0;
+                int size = width * height;
+                double c;
+                double m;
+                double y;
+                double k;
+                double maxColours = Math.Pow(2, _head.BitsPerPixel);
+                int size2 = size * 2;
+                int size3 = size * 3;
+                for (int i = 0; i != pSDImageData.Height; i++)
                 {
-                    _StarIndex = _PSDImageData.Stride * i;
-                    _Index = i * _Width;
-                    for (int z = 0; z != _PSDImageData.Width; z++)
+                    starIndex = pSDImageData.Stride * i;
+                    index = i * width;
+                    for (int z = 0; z != pSDImageData.Width; z++)
                     {
-                        C = 1.0 - (double) _ImageBytes[_Index + z] / _MaxColours;
-                        M = 1.0 - (double) _ImageBytes[_Index + z + _Size] / _MaxColours;
-                        Y = 1.0 - (double) _ImageBytes[_Index + z + _Size2] / _MaxColours;
-                        K = 1.0 - (double) _ImageBytes[_Index + z + _Size3] / _MaxColours;
-                        ConvertCMYKToRGB(C, M, Y, K, _WriteBytes, _StarIndex + z * 3);
+                        c = 1.0 - (double) imageBytes[index + z] / maxColours;
+                        m = 1.0 - (double) imageBytes[index + z + size] / maxColours;
+                        y = 1.0 - (double) imageBytes[index + z + size2] / maxColours;
+                        k = 1.0 - (double) imageBytes[index + z + size3] / maxColours;
+                        ConvertCMYKToRGB(c, m, y, k, writeBytes, starIndex + z * 3);
                     }
                 }
 
-                Marshal.Copy(_WriteBytes, 0, _PSDImageData.Scan0, _WriteBytes.Length);
-                m_PSDImage.UnlockBits(_PSDImageData);
+                Marshal.Copy(writeBytes, 0, pSDImageData.Scan0, writeBytes.Length);
+                PSDImage.UnlockBits(pSDImageData);
             }
             #endregion
 
-            #region RAW数据
-            private void RawData(FileStream p_Stream)
+            private void ConvertCMYKToRGB(double c, double m, double y, double k, byte[] dataBytes, int index)
             {
-                switch (m_HeaderInfo._colorMode)
-                {
-                    case 2: //Index
-                        LoadRAWIndex(p_Stream);
-                        return;
-                    case 3:  //RGB   
-                        LoadRAWRGB(p_Stream);
-                        return;
-                    case 4: //CMYK
-                        LoadRAWCMYK(p_Stream);
-                        return;
-                    default:
-                        throw new Exception("RAW ColorMode =" + m_HeaderInfo._colorMode.ToString());
-                }
+                int red = (int) ((1.0 - (c * (1 - k) + k)) * 255);
+                int green = (int) ((1.0 - (m * (1 - k) + k)) * 255);
+                int blue = (int) ((1.0 - (y * (1 - k) + k)) * 255);
 
-            }
+                if (red < 0) red = 0;
+                else if (red > 255) red = 255;
+                if (green < 0) green = 0;
+                else if (green > 255) green = 255;
+                if (blue < 0) blue = 0;
+                else if (blue > 255) blue = 255;
 
-            private void LoadRAWCMYK(FileStream p_Stream)
-            {
-                int _Width = (int) m_HeaderInfo._width;
-                int _Height = (int) m_HeaderInfo._height;
-                m_PSDImage = new Bitmap(_Width, _Height, PixelFormat.Format24bppRgb);
-                BitmapData _PSDImageData = m_PSDImage.LockBits(new Rectangle(0, 0, m_PSDImage.Width, m_PSDImage.Height), ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
-                byte[] _WriteBytes = new byte[_PSDImageData.Stride * _PSDImageData.Height];
-                int _PerPixel = m_HeaderInfo._bitsPerPixel / 8;
-                int _PixelsCount = _Width * _Height;
-                int _BytesCount = _PixelsCount * 4 * _PerPixel;
-                byte[] _ImageBytes = new byte[_BytesCount];
-                p_Stream.Read(_ImageBytes, 0, _BytesCount);
-
-                int _StarIndex = 0;
-                int _Index = 0;
-                int _Size = _Width * _Height;
-                double C;
-                double M;
-                double Y;
-                double K;
-                double _MaxColours = Math.Pow(2, m_HeaderInfo._bitsPerPixel);
-                int _Size2 = _Size * 2;
-                int _Size3 = _Size * 3;
-
-                if (_PerPixel == 2)
-                {
-                    _Size *= 2;
-                    _Size2 *= 2;
-                    _Size3 *= 2;
-                }
-                for (int i = 0; i != _PSDImageData.Height; i++)
-                {
-                    _StarIndex = _PSDImageData.Stride * i;
-
-                    _Index = i * _Width;
-                    if (_PerPixel == 2) _Index *= 2;
-                    for (int z = 0; z != _PSDImageData.Width; z++)
-                    {
-                        switch (_PerPixel)
-                        {
-                            case 1:
-                                C = 1.0 - (double) _ImageBytes[_Index + z] / _MaxColours;
-                                M = 1.0 - (double) _ImageBytes[_Index + z + _Size] / _MaxColours;
-                                Y = 1.0 - (double) _ImageBytes[_Index + z + _Size2] / _MaxColours;
-                                K = 1.0 - (double) _ImageBytes[_Index + z + _Size3] / _MaxColours;
-                                ConvertCMYKToRGB(C, M, Y, K, _WriteBytes, _StarIndex + z * 3);
-                                break;
-                            case 2:
-                                C = 1.0 - (double) BitConverter.ToUInt16(_ImageBytes, _Index + z * 2) / _MaxColours;
-                                M = 1.0 - (double) BitConverter.ToUInt16(_ImageBytes, _Index + z * 2 + _Size) / _MaxColours;
-                                Y = 1.0 - (double) BitConverter.ToUInt16(_ImageBytes, _Index + z * 2 + _Size2) / _MaxColours;
-                                K = 1.0 - (double) BitConverter.ToUInt16(_ImageBytes, _Index + z * 2 + _Size3) / _MaxColours;
-                                ConvertCMYKToRGB(C, M, Y, K, _WriteBytes, _StarIndex + z * 3);
-                                break;
-                        }
-
-
-                    }
-                }
-                Marshal.Copy(_WriteBytes, 0, _PSDImageData.Scan0, _WriteBytes.Length);
-                m_PSDImage.UnlockBits(_PSDImageData);
-            }
-
-            /// <summary>
-            /// 直接获取RGB 256色图
-            /// </summary>
-            /// <param name="p_Stream"></param>
-            private void LoadRAWIndex(FileStream p_Stream)
-            {
-                int _Width = (int) m_HeaderInfo._width;
-                int _Height = (int) m_HeaderInfo._height;
-                m_PSDImage = new Bitmap(_Width, _Height, PixelFormat.Format8bppIndexed);
-                BitmapData _PSDImageData = m_PSDImage.LockBits(new Rectangle(0, 0, m_PSDImage.Width, m_PSDImage.Height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
-                byte[] _ImageBytes = new byte[_PSDImageData.Stride * _PSDImageData.Height];
-
-                int _PixelsCount = _Width * _Height;
-                byte[] _Data = new byte[_PixelsCount];
-                p_Stream.Read(_Data, 0, _PixelsCount);
-
-                int _ReadIndex = 0;
-                int _WriteIndex = 0;
-                for (int i = 0; i != _Height; i++)
-                {
-                    _WriteIndex = i * _PSDImageData.Stride;
-                    for (int z = 0; z != _Width; z++)
-                    {
-                        _ImageBytes[z + _WriteIndex] = _Data[_ReadIndex];
-                        _ReadIndex++;
-                    }
-                }
-
-                Marshal.Copy(_ImageBytes, 0, _PSDImageData.Scan0, _ImageBytes.Length);
-                m_PSDImage.UnlockBits(_PSDImageData);
-            }
-
-            /// <summary>
-            /// 获取图形24B   Photo里对应为
-            /// </summary>
-            /// <param name="p_Stream"></param>
-            private void LoadRAWRGB(FileStream p_Stream)
-            {
-                int _Width = (int) m_HeaderInfo._width;
-                int _Height = (int) m_HeaderInfo._height;
-                m_PSDImage = new Bitmap(_Width, _Height, PixelFormat.Format24bppRgb);
-                BitmapData _PSDImageData = m_PSDImage.LockBits(new Rectangle(0, 0, m_PSDImage.Width, m_PSDImage.Height), ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
-                byte[] _ImageBytes = new byte[_PSDImageData.Stride * _PSDImageData.Height];
-
-                int _PixelsCount = _Width * _Height;
-                int _BytesCount = _PixelsCount * 3 * (m_HeaderInfo._bitsPerPixel / 8);
-                byte[] _Data = new byte[_BytesCount];
-                p_Stream.Read(_Data, 0, _BytesCount);
-
-                int _Red = 0;
-                int _Green = _PixelsCount;
-                int _Blue = _PixelsCount + _PixelsCount;
-                int _ReadIndex = 0;
-                int _WriteIndex = 0;
-
-                if (m_HeaderInfo._bitsPerPixel == 16)
-                {
-                    _Green *= m_HeaderInfo._bitsPerPixel / 8;
-                    _Blue *= m_HeaderInfo._bitsPerPixel / 8;
-                }
-
-                for (int i = 0; i != _Height; i++)
-                {
-                    _WriteIndex = i * _PSDImageData.Stride;
-                    for (int z = 0; z != _Width; z++)
-                    {
-                        _ImageBytes[(z * 3) + 2 + _WriteIndex] = _Data[_ReadIndex + _Red];
-                        _ImageBytes[(z * 3) + 1 + _WriteIndex] = _Data[_ReadIndex + _Green];
-                        _ImageBytes[(z * 3) + _WriteIndex] = _Data[_ReadIndex + _Blue];
-                        _ReadIndex += m_HeaderInfo._bitsPerPixel / 8;
-                    }
-                }
-                Marshal.Copy(_ImageBytes, 0, _PSDImageData.Scan0, _ImageBytes.Length);
-                m_PSDImage.UnlockBits(_PSDImageData);
-            }
-            #endregion
-
-            private Bitmap m_PSDImage;
-
-            public Bitmap PSDImage
-            {
-                get { return m_PSDImage; }
-                set { m_PSDImage = value; }
-            }
-
-
-            private void ConvertCMYKToRGB(double p_C, double p_M, double p_Y, double p_K, byte[] p_DataBytes, int p_Index)
-            {
-                int _Red = (int) ((1.0 - (p_C * (1 - p_K) + p_K)) * 255);
-                int _Green = (int) ((1.0 - (p_M * (1 - p_K) + p_K)) * 255);
-                int _Blue = (int) ((1.0 - (p_Y * (1 - p_K) + p_K)) * 255);
-
-                if (_Red < 0) _Red = 0;
-                else if (_Red > 255) _Red = 255;
-                if (_Green < 0) _Green = 0;
-                else if (_Green > 255) _Green = 255;
-                if (_Blue < 0) _Blue = 0;
-                else if (_Blue > 255) _Blue = 255;
-
-                p_DataBytes[p_Index] = (byte) _Blue;
-                p_DataBytes[p_Index + 1] = (byte) _Green;
-                p_DataBytes[p_Index + 2] = (byte) _Red;
+                dataBytes[index] = (byte) blue;
+                dataBytes[index + 1] = (byte) green;
+                dataBytes[index + 2] = (byte) red;
             }
         }
 
-        private PSDHead m_Head;
-        private PSDColorMode m_ColorModel;
-        private IList<BIM> m_8BIMList = new List<BIM>();
-        private LayerMaskInfo m_LayerMaskInfo;
-        private ImageData m_ImageData;
+        private Head _head;
+        private ColorMode _colorMode;
+        private IList<BIM> _8BIMList = new List<BIM>();
+        private LayerMaskInfo _layerMaskInfo;
+        private ImageData _imageData;
 
-        public PSDHelper(string p_FileFullPath)
+        public PSDHelper(string filePath)
         {
-            if (!File.Exists(p_FileFullPath)) return;
-            FileStream _PSD = File.Open(p_FileFullPath, FileMode.Open);
-            byte[] _HeadByte = new byte[26];
-            _PSD.Read(_HeadByte, 0, 26);
-            m_Head = new PSDHead(_HeadByte);
-            m_ColorModel = new PSDColorMode(_PSD);
+            if (!File.Exists(filePath))
+            {
+                throw new Exception();
+            }
+            FileStream fs = File.Open(filePath, FileMode.Open);
 
-            long _ReadCount = _PSD.Position;
+            _head = new Head(fs);
+            _colorMode = new ColorMode(fs);
+
+            long readCount = fs.Position;
             while (true)
             {
-                BIM _Bim = new BIM(_PSD);
-                if (!_Bim.Read || _PSD.Position - _ReadCount >= m_ColorModel._bIMSize) break;
-                m_8BIMList.Add(_Bim);
+                BIM _Bim = new BIM(fs);
+                if (!_Bim._isRead || fs.Position - readCount >= _colorMode.BIMSize)
+                    break;
+                _8BIMList.Add(_Bim);
             }
-            m_LayerMaskInfo = new LayerMaskInfo(_PSD);
-            m_ImageData = new ImageData(_PSD, m_Head);
-            if (m_Head._colorMode == 2) m_ImageData.PSDImage.Palette = m_ColorModel._colorData;
-            _PSD.Close();
+            _layerMaskInfo = new LayerMaskInfo(fs);
+            _imageData = new ImageData(fs, _head);
+            if (_head.ColorMode == 2)
+                _imageData.PSDImage.Palette = _colorMode.ColorData;
+            fs.Close();
         }
 
         //Image
         public Bitmap PSDImage
         {
-            get { return m_ImageData.PSDImage; }
-            set { m_ImageData.PSDImage = value; }
+            get
+            {
+                return _imageData.PSDImage;
+            }
+            set
+            {
+                _imageData.PSDImage = value;
+            }
         }
     }
 }

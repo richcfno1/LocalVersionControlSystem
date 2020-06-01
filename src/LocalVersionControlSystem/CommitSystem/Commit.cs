@@ -1,4 +1,5 @@
 ﻿using LocalVersionControlSystem.IndexingSystem;
+using LocalVersionControlSystem.Helper;
 using System;
 using System.Collections.Generic;
 using System.IO;
