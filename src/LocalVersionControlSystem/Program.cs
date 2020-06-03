@@ -44,7 +44,11 @@ namespace LocalVersionControlSystem
             //    idl.ShowDiff(); //Show difference between commits.
             //}
 
-            Commit.Export(project, "9D429EF81896", "TESTCOMMIT");
+            //Commit.Export(project, "2FC546D8DDF7", "TESTCOMMIT");
+            //Commit.Import(project, "TESTCOMMIT");
+            idl.LoadIndexingTrees();
+            idl.GetIndexingTree("2FC546D8DDF7").ImportTreeFromIndexing();
+            idl.GetIndexingTree("2FC546D8DDF7").ExportTreeToDirectory();
 
         }
     }

@@ -30,6 +30,16 @@ namespace LocalVersionControlSystem.IndexingSystem
             _indexingTrees.Add(newIndexingTree.UpdateTime, newIndexingTree);
         }
 
+        public IndexingTree? GetIndexingTree(string id)
+        {
+            for(int i = 0; i < _indexingTrees.Count; i++)
+            {
+                if (_indexingTrees.Values[i].ID == id)
+                    return _indexingTrees.Values[i];
+            }
+            return null;
+        }
+
         public void ShowDiff()
         {
             for (var i = 0; i < _indexingTrees.Count - 1; i++)
@@ -42,12 +52,12 @@ namespace LocalVersionControlSystem.IndexingSystem
                 Console.WriteLine("Added: ");
                 foreach (var a in addedNodes)
                 {
-                    Console.WriteLine(a.Substring(0, 8));
+                    Console.WriteLine(a);
                 }
                 Console.WriteLine("Deleted: ");
                 foreach (var d in deletedNodes)
                 {
-                    Console.WriteLine(d.Substring(0, 8));
+                    Console.WriteLine(d);
                 }
             }
         }

@@ -3,42 +3,50 @@ using System.Collections.Generic;
 using System.Text;
 using System.IO;
 using System.Linq;
+using System.Collections.Specialized;
 
 namespace LocalVersionControlSystem.ObjectSystem
 {
     static class ObjectHelper
     {
         public static readonly string EmptyZeroes = new string('0', 64);
-        //Object file name includes the first 6 digit of SHA256 of file and first 6 digit of SHA256 of file content.
-        private const int NameSHA256PartLength = 6;
-        private const int ContentSHA256PartLength = 6;
+        //Object file name includes the first 6 digit of HASH of file and first 6 digit of HASH of file content.
+        private const int NameHASHPartLength = 6;
+        private const int ContentHASHPartLength = 6;
 
-        //Use fileinfo to find a file, record nameSHA256 and contentSHA256, create a object file.
-        public static void CreateObject(this Project project, FileInfo f, string nameSHA256, string contentSHA256)
+        //Use fileinfo to find a file, record nameHASH and contentHASH, create a object file.
+        public static void CreateObject(this Project project, FileInfo f, string nameHASH, string contentHASH)
         {
-            var header = $"{nameSHA256}\n{contentSHA256}\n{f.Name}\n";
+            var header = $"{nameHASH}\n{contentHASH}\n{f.Name}\n";
             var objectFileData = Encoding.UTF8.GetBytes(header).Concat(File.ReadAllBytes(f.FullName)).ToArray();
-            var outputFilePath = Path.Combine(project.ObjectsFolderPath, nameSHA256.Substring(0, NameSHA256PartLength) +
-                contentSHA256.Substring(0, ContentSHA256PartLength) + ".objdata");
+            var outputFilePath = Path.Combine(project.ObjectsFolderPath, nameHASH.Substring(0, NameHASHPartLength) +
+                contentHASH.Substring(0, ContentHASHPartLength) + ".objdata");
             File.WriteAllBytes(outputFilePath, objectFileData);
         }
 
-        //Use directoryinfo to find a directory, record nameSHA256 and contentSHA256(0), create a object file.
-        public static void CreateObject(this Project project, DirectoryInfo d, string nameSHA256)
+        //Use directoryinfo to find a directory, record nameHASH and contentHASH(0), create a object file.
+        public static void CreateObject(this Project project, DirectoryInfo d, string nameHASH)
         {
-            var objectFileText = $"{nameSHA256}\n{EmptyZeroes}\n{d.Name}";
-            var outputFilePath = Path.Combine(project.ObjectsFolderPath, nameSHA256.Substring(0, NameSHA256PartLength) + "000000.objdata");
+            var objectFileText = $"{nameHASH}\n{EmptyZeroes}\n{d.Name}";
+            var outputFilePath = Path.Combine(project.ObjectsFolderPath, nameHASH.Substring(0, NameHASHPartLength) + "000000.objdata");
             File.WriteAllText(outputFilePath, objectFileText);
         }
 
-        //Get SHA256 of name of a object file.
+        public static void CreateObject(this Project project, byte[] data, string nameHASH, string contentHASH)
+        {
+            var outputFilePath = Path.Combine(project.ObjectsFolderPath, nameHASH.Substring(0, NameHASHPartLength) +
+                contentHASH.Substring(0, ContentHASHPartLength) + ".objdata");
+            File.WriteAllBytes(outputFilePath, data);
+        }
+
+        //Get HASH of name of a object file.
         public static string GetFileNameHash(string objectPath)
         {
             var objectFileContent = File.ReadAllBytes(objectPath);
             return Encoding.UTF8.GetString(objectFileContent.Skip(0).Take(64).ToArray());
         }
 
-        //Get SHA256 of content of a object file.
+        //Get HASH of content of a object file.
         public static string GetContentHash(string objectPath)
         {
             var objectFileContent = File.ReadAllBytes(objectPath);
@@ -64,7 +72,7 @@ namespace LocalVersionControlSystem.ObjectSystem
             return Encoding.UTF8.GetString(objectFileContent.Skip(130).ToArray());
         }
 
-        //Find the path to a object with specific NameSHA256, ContentSHA256, and path to all objects
+        //Find the path to a object with specific NameHASH, ContentHASH, and path to all objects
         public static string? FindObjectPath(this Project project, string nameHash, string contentHash)
         {
             var objectsFolder = new DirectoryInfo(project.ObjectsFolderPath);

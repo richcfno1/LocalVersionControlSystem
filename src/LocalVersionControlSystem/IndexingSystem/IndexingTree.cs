@@ -141,6 +141,14 @@ namespace LocalVersionControlSystem.IndexingSystem
         //The function which can implement ExportTreeToDirectory.
         private void CreateDirectoryFromTree(IndexingNode curNode, string curPath)
         {
+            if (curNode.Equals(_root))
+            {
+                foreach (var child in curNode.Children)
+                {
+                    CreateDirectoryFromTree(child, curPath);
+                }
+                return;
+            }
             var objectPath = _project.FindObjectPath(curNode.NameSHA256, curNode.ContentSHA256);
             var nextLayerPath = "";
             if (objectPath != null && curNode.ContentSHA256 != ObjectHelper.EmptyZeroes)
@@ -172,7 +180,7 @@ namespace LocalVersionControlSystem.IndexingSystem
         //The function which can implement ExportTreeToIndexing.
         private string CreateIndexingFromTree(IndexingNode curNode, string pathHash)
         {
-            var result = Path.Combine(pathHash, curNode.ToString());
+            var result = pathHash + "\\" +curNode.ToString();
             pathHash = result;
             return curNode.Children.Aggregate(result,
                 (content, children) => $"{content}\n{CreateIndexingFromTree(children, pathHash)}");
