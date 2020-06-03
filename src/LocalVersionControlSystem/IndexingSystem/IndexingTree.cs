@@ -5,29 +5,53 @@ using System.IO;
 using LocalVersionControlSystem.ObjectSystem;
 using LocalVersionControlSystem.Helper;
 using System.Linq;
+using System.Globalization;
 
 namespace LocalVersionControlSystem.IndexingSystem
 {
     class IndexingTree
     {
+        public string ID { get; }
         public string IndexFilePath { get; } //Place to save indexing.
+        public DateTime UpdateTime { get; set; }
 
         private readonly Project _project;   // user's project.
         private IndexingNode? _root;    //Root node of the tree.
+        
 
         //Return a list of lines that are only in indexingA.
         public static IEnumerable<string> CompareTwoIndexing(string indexingAPath, string indexingBPath)
         {
             var indexingA = File.ReadAllLines(indexingAPath);
             var indexingB = File.ReadAllLines(indexingBPath);
+            indexingA[0] = indexingB[0];  //Ignore the line about time
             return indexingA.Where(a => !indexingB.Contains(a));
+        }
+
+        public IndexingTree(Project project)
+        {
+            // TODO: generate id from author, timestamp and/or file hash
+            ID = HashHelper.HashString(Guid.NewGuid().ToString()).Substring(0,12);
+            _project = project;
+            IndexFilePath = Path.Combine(_project.IndexingFolderPath, ID + ".idxdata");
+            DirectoryInfo d = new DirectoryInfo(IndexFilePath);
+            if (d.Exists)
+                ImportTreeFromIndexing();
+            else
+                UpdateTime = DateTime.Now;
         }
 
         //Initialize the path are needed
         public IndexingTree(Project project, string id)
         {
+            ID = id;
             _project = project;
-            IndexFilePath = Path.Combine(_project.IndexingFolderPath, id);
+            IndexFilePath = Path.Combine(_project.IndexingFolderPath, ID + ".idxdata");
+            DirectoryInfo d = new DirectoryInfo(IndexFilePath);
+            if (d.Exists)
+                ImportTreeFromIndexing();
+            else
+                UpdateTime = DateTime.Now;
         }
 
         //The function which can implement ImportTreeFromDirectory.
@@ -104,8 +128,14 @@ namespace LocalVersionControlSystem.IndexingSystem
         public void ImportTreeFromIndexing()
         {
             var indexing = File.ReadAllLines(IndexFilePath);
-            _root = new IndexingNode(indexing[0].Substring(1, 64), null);
-            CreateTreeFromIndexing(indexing, 0, _root);
+            UpdateTime = new DateTime(int.Parse(indexing[0].Substring(0,4), NumberFormatInfo.InvariantInfo), //Year
+                int.Parse(indexing[0].Substring(5, 2), NumberFormatInfo.InvariantInfo), //Month
+                int.Parse(indexing[0].Substring(8, 2), NumberFormatInfo.InvariantInfo), //Day
+                int.Parse(indexing[0].Substring(11, 2), NumberFormatInfo.InvariantInfo), //Hour
+                int.Parse(indexing[0].Substring(14, 2), NumberFormatInfo.InvariantInfo), //Minute
+                int.Parse(indexing[0].Substring(17, 2), NumberFormatInfo.InvariantInfo)); //Second
+            _root = new IndexingNode(indexing[1].Substring(1, 64), null);
+            CreateTreeFromIndexing(indexing, 1, _root);
         }
 
         //The function which can implement ExportTreeToDirectory.
@@ -155,7 +185,8 @@ namespace LocalVersionControlSystem.IndexingSystem
             {
                 throw new InvalidOperationException();
             }
-            File.WriteAllText(IndexFilePath, CreateIndexingFromTree(_root, string.Empty));
+            File.WriteAllText(IndexFilePath, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", DateTimeFormatInfo.InvariantInfo) + "\n" +
+                CreateIndexingFromTree(_root, string.Empty));
         }
     }
 }
