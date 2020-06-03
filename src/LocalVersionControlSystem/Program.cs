@@ -28,27 +28,24 @@ namespace LocalVersionControlSystem
             Console.WriteLine("Current Status:");
             idl.ShowDiff();
 
-            //while (true)
-            //{
-            //    Console.WriteLine("Write anything to commit everything, or type ENTER to exit");
-            //    if (Console.ReadLine().Length == 0)
-            //    {
-            //        break;
-            //    }
+            while (true)
+            {
+                Console.WriteLine("Write anything to commit everything, or type ENTER to exit");
+                if (Console.ReadLine().Length == 0)
+                {
+                    break;
+                }
 
-            //    Console.WriteLine("Creating commit");
-            //    var indexingTree = new IndexingTree(project); //Create a new commit
-            //    indexingTree.ImportTreeFromDirectory(); //Use current diretroy and file to make a tree
-            //    indexingTree.ExportTreeToIndexing(); //Export the tree as indexing file
-            //    idl.AddIndexingTree(indexingTree); //Add the commit to list
-            //    idl.ShowDiff(); //Show difference between commits.
-            //}
+                Console.WriteLine("Creating commit");
+                var indexingTree = new IndexingTree(project); //Create a new commit
+                indexingTree.ImportTreeFromDirectory(); //Use current diretroy and file to make a tree
+                indexingTree.ExportTreeToIndexing(); //Export the tree as indexing file
+                idl.AddIndexingTree(indexingTree); //Add the commit to list
+                idl.ShowDiff(); //Show difference between commits.
+            }
 
             //Commit.Export(project, "2FC546D8DDF7", "TESTCOMMIT");
             //Commit.Import(project, "TESTCOMMIT");
-            idl.LoadIndexingTrees();
-            idl.GetIndexingTree("2FC546D8DDF7").ImportTreeFromIndexing();
-            idl.GetIndexingTree("2FC546D8DDF7").ExportTreeToDirectory();
 
         }
     }
