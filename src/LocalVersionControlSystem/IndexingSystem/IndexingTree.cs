@@ -6,6 +6,7 @@ using LocalVersionControlSystem.ObjectSystem;
 using LocalVersionControlSystem.Helper;
 using System.Linq;
 using System.Globalization;
+using System.Collections;
 
 namespace LocalVersionControlSystem.IndexingSystem
 {
@@ -17,13 +18,14 @@ namespace LocalVersionControlSystem.IndexingSystem
 
         private readonly Project _project;   // user's project.
         private IndexingNode? _root;    //Root node of the tree.
+        private List<IndexingNode> _allNodes;  //List of all nodes in the tree
         
 
         //Return a list of lines that are only in indexingA.
-        public static IEnumerable<string> CompareTwoIndexing(string indexingAPath, string indexingBPath)
+        public static IEnumerable<string> CompareTwoIndexing(string indexingPath1, string indexingPath2)
         {
-            var indexingA = File.ReadAllLines(indexingAPath);
-            var indexingB = File.ReadAllLines(indexingBPath);
+            var indexingA = File.ReadAllLines(indexingPath1);
+            var indexingB = File.ReadAllLines(indexingPath2);
             indexingA[0] = indexingB[0];  //Ignore the line about time
             return indexingA.Where(a => !indexingB.Contains(a));
         }
@@ -39,6 +41,7 @@ namespace LocalVersionControlSystem.IndexingSystem
                 ImportTreeFromIndexing();
             else
                 UpdateTime = DateTime.Now;
+            _allNodes = new List<IndexingNode>();
         }
 
         //Initialize the path are needed
@@ -52,6 +55,34 @@ namespace LocalVersionControlSystem.IndexingSystem
                 ImportTreeFromIndexing();
             else
                 UpdateTime = DateTime.Now;
+            _allNodes = new List<IndexingNode>();
+        }
+
+        public Project GetProject()
+        {
+            return _project;
+        }
+
+        public IndexingNode GetRoot()
+        {
+            if (_root == null)
+                throw new Exception("Uninitialized tree");
+            return _root;
+        }
+
+        public void SetRoot(IndexingNode root)
+        {
+            _root = root;
+        }
+
+        public List<IndexingNode> GetAllNodes()
+        {
+            return _allNodes;
+        }
+
+        public void SetAllNodes(List<IndexingNode> allNodes)
+        {
+            _allNodes = allNodes;
         }
 
         //The function which can implement ImportTreeFromDirectory.
@@ -62,7 +93,9 @@ namespace LocalVersionControlSystem.IndexingSystem
             {
                 var fileNameHash = HashHelper.HashString(f.Name);
                 var contentHash = HashHelper.HashFile(Path.Combine(path, f.Name));
-                parent.AddChild(new IndexingNode(fileNameHash, contentHash, parent));
+                var subFileNode = new IndexingNode(fileNameHash, contentHash, parent);
+                _allNodes.Add(subFileNode);
+                parent.AddChild(subFileNode);
                 _project.CreateObject(f, fileNameHash, contentHash);
             }
 
@@ -77,6 +110,7 @@ namespace LocalVersionControlSystem.IndexingSystem
 
                 var directoryNameHash = HashHelper.HashString(d.Name);
                 var subDirectoryNode = new IndexingNode(directoryNameHash, parent);
+                _allNodes.Add(subDirectoryNode);
                 parent.AddChild(subDirectoryNode);
                 _project.CreateObject(d, directoryNameHash);
                 CreateTreeFromDirectory(Path.Combine(path, d.Name), subDirectoryNode);
@@ -86,9 +120,11 @@ namespace LocalVersionControlSystem.IndexingSystem
         //Build a tree based on files in directory, and create object for each node.
         public void ImportTreeFromDirectory()
         {
+            _allNodes.Clear();
             var rootInfo = new DirectoryInfo(_project.Path);
             _project.CreateObject(rootInfo, HashHelper.HashString(rootInfo.Name));
             _root = new IndexingNode(HashHelper.HashString(new DirectoryInfo(_project.Path).Name), null);
+            _allNodes.Add(_root);
             CreateTreeFromDirectory(_project.Path, _root);
         }
 
@@ -113,12 +149,14 @@ namespace LocalVersionControlSystem.IndexingSystem
                 {
                     isFinishedFile = true;
                     var tempNode = new IndexingNode(nameHash, parent);
+                    _allNodes.Add(tempNode);
                     parent.AddChild(tempNode);
                     CreateTreeFromIndexing(indexing, curLine, tempNode);
                 }
                 else if (!isFinishedFile)
                 {
                     var tempNode = new IndexingNode(nameHash, contentHash, parent);
+                    _allNodes.Add(tempNode);
                     parent.AddChild(tempNode);
                 }
             }
@@ -127,6 +165,7 @@ namespace LocalVersionControlSystem.IndexingSystem
         //Build a tree based on indexing, this action won't make any change on objects.
         public void ImportTreeFromIndexing()
         {
+            _allNodes.Clear();
             var indexing = File.ReadAllLines(IndexFilePath);
             UpdateTime = new DateTime(int.Parse(indexing[0].Substring(0,4), NumberFormatInfo.InvariantInfo), //Year
                 int.Parse(indexing[0].Substring(5, 2), NumberFormatInfo.InvariantInfo), //Month
@@ -135,13 +174,14 @@ namespace LocalVersionControlSystem.IndexingSystem
                 int.Parse(indexing[0].Substring(14, 2), NumberFormatInfo.InvariantInfo), //Minute
                 int.Parse(indexing[0].Substring(17, 2), NumberFormatInfo.InvariantInfo)); //Second
             _root = new IndexingNode(indexing[1].Substring(1, 64), null);
+            _allNodes.Add(_root);
             CreateTreeFromIndexing(indexing, 1, _root);
         }
 
         //The function which can implement ExportTreeToDirectory.
         private void CreateDirectoryFromTree(IndexingNode curNode, string curPath)
         {
-            if (curNode.Equals(_root))
+            if (_root != null && curNode.Equals(_root))
             {
                 foreach (var child in curNode.Children)
                 {
