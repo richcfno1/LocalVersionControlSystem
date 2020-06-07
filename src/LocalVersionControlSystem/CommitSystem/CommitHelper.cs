@@ -10,7 +10,7 @@ using System.Linq;
 
 namespace LocalVersionControlSystem.CommitSystem
 {
-    class Commit
+    class CommitHelper
     {
         private static int IndexOf(int start, byte[] a, byte[] b)
         {
@@ -68,7 +68,7 @@ namespace LocalVersionControlSystem.CommitSystem
             }
         }
 
-        public static DateTime Import(Project project, string commitID)
+        public static string Import(Project project, string commitID)
         {
             int curIndex = 0;
             string commitPath = commitID + ".cmtdata";
@@ -120,7 +120,7 @@ namespace LocalVersionControlSystem.CommitSystem
                 curIndex = IndexOf(curIndex, content, System.Text.Encoding.UTF8.GetBytes("\nOBJDATA")) + 9;
             }
 
-            return commitTime;
+            return indexingTreeID;
         }
     }
 }

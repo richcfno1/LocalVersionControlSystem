@@ -12,6 +12,7 @@ namespace LocalVersionControlSystem
 {
     class Program
     {
+        [STAThread]
         static void Main(string[] _)
         {
             var project = new Project("TestFiles");
@@ -50,8 +51,8 @@ namespace LocalVersionControlSystem
             var indexingTree2 = new IndexingTree(project, "2FC546D8DDF7");
             indexingTree1.ImportTreeFromIndexing();
             indexingTree2.ImportTreeFromIndexing();
-            IndexingMerge.Merge(indexingTree1, indexingTree2).ExportTreeToIndexing();
-            Console.WriteLine(IndexingMerge.UpdateNode.Count);
+            IndexingMergeHelper.Merge(indexingTree1, indexingTree2).ExportTreeToIndexing();
+            Console.WriteLine(IndexingMergeHelper.UpdateNode.Count);
         }
     }
 }

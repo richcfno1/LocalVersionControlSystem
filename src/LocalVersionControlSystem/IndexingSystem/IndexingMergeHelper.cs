@@ -7,7 +7,7 @@ using System.ComponentModel;
 
 namespace LocalVersionControlSystem.IndexingSystem
 {
-    class IndexingMerge
+    class IndexingMergeHelper
     {
         public static List<IndexingNode> OnlyInIndexing1 = new List<IndexingNode>();
         public static List<IndexingNode> OnlyInIndexing2 = new List<IndexingNode>();
