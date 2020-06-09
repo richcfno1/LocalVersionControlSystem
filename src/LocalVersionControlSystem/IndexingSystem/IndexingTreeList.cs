@@ -27,7 +27,7 @@ namespace LocalVersionControlSystem.IndexingSystem
 
         public void AddIndexingTree(IndexingTree newIndexingTree)
         {
-            _indexingTrees.Add(newIndexingTree.UpdateTime, newIndexingTree);
+            _indexingTrees.Add(newIndexingTree.SubmitTime, newIndexingTree);
         }
 
         public IndexingTree? GetIndexingTree(string id)

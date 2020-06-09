@@ -47,12 +47,16 @@ namespace LocalVersionControlSystem
 
             //Commit.Export(project, "2FC546D8DDF7", "TESTCOMMIT");
             //Commit.Import(project, "TESTCOMMIT");
-            var indexingTree1 = new IndexingTree(project, "3F7FED43B52C");
-            var indexingTree2 = new IndexingTree(project, "2FC546D8DDF7");
+            var indexingTree1 = new IndexingTree(project, "BAD94AD56AF0", "000000000000");
+            //indexingTree1.ImportTreeFromDirectory();
+            //indexingTree1.ExportTreeToIndexing();
             indexingTree1.ImportTreeFromIndexing();
-            indexingTree2.ImportTreeFromIndexing();
-            IndexingMergeHelper.Merge(indexingTree1, indexingTree2).ExportTreeToIndexing();
-            Console.WriteLine(IndexingMergeHelper.UpdateNode.Count);
+            indexingTree1.ExportTreeToDirectory();
+            //var indexingTree2 = new IndexingTree(project, "2FC546D8DDF7");
+            //indexingTree1.ImportTreeFromIndexing();
+            //indexingTree2.ImportTreeFromIndexing();
+            //IndexingMergeHelper.Merge(indexingTree1, indexingTree2).ExportTreeToIndexing();
+            //Console.WriteLine(IndexingMergeHelper.UpdateNode.Count);
         }
     }
 }

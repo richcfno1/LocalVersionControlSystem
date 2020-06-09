@@ -21,7 +21,7 @@ namespace LocalVersionControlSystem.IndexingSystem
             OnlyInIndexing2 = new List<IndexingNode>();
             UpdateNode = new List<IndexingNode>();
             ResultIndexingNodes = new List<IndexingNode>();
-            ResultTree = new IndexingTree(indexingTree1.GetProject());
+            ResultTree = new IndexingTree(indexingTree1.Project, "000000000000");
 
             if (!indexingTree1.GetRoot().Equals(indexingTree2.GetRoot()))
                 throw new Exception("Not same root!");
