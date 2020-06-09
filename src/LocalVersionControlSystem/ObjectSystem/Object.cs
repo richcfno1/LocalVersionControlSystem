@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace LocalVersionControlSystem.ObjectSystem
+﻿namespace LocalVersionControlSystem.ObjectSystem
 {
     class Object
     {

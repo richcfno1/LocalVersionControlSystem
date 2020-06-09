@@ -45,18 +45,11 @@ namespace LocalVersionControlSystem
             //    idl.ShowDiff(); //Show difference between commits.
             //}
 
-            //Commit.Export(project, "2FC546D8DDF7", "TESTCOMMIT");
-            //Commit.Import(project, "TESTCOMMIT");
-            var indexingTree1 = new IndexingTree(project, "BAD94AD56AF0", "000000000000");
-            //indexingTree1.ImportTreeFromDirectory();
-            //indexingTree1.ExportTreeToIndexing();
-            indexingTree1.ImportTreeFromIndexing();
-            indexingTree1.ExportTreeToDirectory();
-            //var indexingTree2 = new IndexingTree(project, "2FC546D8DDF7");
+            //var indexingTree1 = new IndexingTree(project, "BAD94AD56AF0", "000000000000");
             //indexingTree1.ImportTreeFromIndexing();
-            //indexingTree2.ImportTreeFromIndexing();
-            //IndexingMergeHelper.Merge(indexingTree1, indexingTree2).ExportTreeToIndexing();
-            //Console.WriteLine(IndexingMergeHelper.UpdateNode.Count);
+            //CommitHelper.ExportCommit(project, indexingTree1);
+
+            CommitHelper.ImportCommit(project, "BAD94AD56AF0");
         }
     }
 }

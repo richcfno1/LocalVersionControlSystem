@@ -1,6 +1,4 @@
-﻿using System.IO;
-
-namespace LocalVersionControlSystem
+﻿namespace LocalVersionControlSystem
 {
     class Project
     {
@@ -20,6 +18,11 @@ namespace LocalVersionControlSystem
         public const string ObjectsName = "Objects";
 
         /// <summary>
+        /// The name of folder containing temporary data.
+        /// </summary>
+        public const string TemporaryName = "Temp";
+
+        /// <summary>
         /// The indexing folder of current project.
         /// </summary>
         public string IndexingFolderPath => System.IO.Path.Combine(Path, PrivateFolderName, IndexingName);
@@ -28,6 +31,11 @@ namespace LocalVersionControlSystem
         /// The objects folder of current project.
         /// </summary>
         public string ObjectsFolderPath => System.IO.Path.Combine(Path, PrivateFolderName, ObjectsName);
+
+        /// <summary>
+        /// The temporary folder of current project.
+        /// </summary>
+        public string TemporaryFolderPath => System.IO.Path.Combine(Path, PrivateFolderName, TemporaryName);
 
         /// <summary>
         /// The project path.
