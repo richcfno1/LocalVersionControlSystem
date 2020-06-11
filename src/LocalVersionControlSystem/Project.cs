@@ -1,4 +1,6 @@
-﻿namespace LocalVersionControlSystem
+﻿using System.IO;
+
+namespace LocalVersionControlSystem
 {
     class Project
     {
@@ -55,6 +57,13 @@
         public Project(string projectPath)
         {
             Path = projectPath;
+
+            if (!Directory.Exists(IndexingFolderPath))
+                Directory.CreateDirectory(IndexingFolderPath);
+            if (!Directory.Exists(ObjectsFolderPath))
+                Directory.CreateDirectory(ObjectsFolderPath);
+            if (!Directory.Exists(TemporaryFolderPath))
+                Directory.CreateDirectory(TemporaryFolderPath);
         }
     }
 }
