@@ -23,6 +23,11 @@
         public const string TemporaryName = "Temp";
 
         /// <summary>
+        /// The name of folder containing brench data.
+        /// </summary>
+        public const string BrenchName = "Brench.bchdata";
+
+        /// <summary>
         /// The indexing folder of current project.
         /// </summary>
         public string IndexingFolderPath => System.IO.Path.Combine(Path, PrivateFolderName, IndexingName);
@@ -36,6 +41,11 @@
         /// The temporary folder of current project.
         /// </summary>
         public string TemporaryFolderPath => System.IO.Path.Combine(Path, PrivateFolderName, TemporaryName);
+
+        /// <summary>
+        /// The brench file of current project.
+        /// </summary>
+        public string BrenchFolderPath => System.IO.Path.Combine(Path, PrivateFolderName, BrenchName);
 
         /// <summary>
         /// The project path.
