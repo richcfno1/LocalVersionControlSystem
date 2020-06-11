@@ -37,6 +37,21 @@ namespace LocalVersionControlSystem.IndexingSystem
             }
             return null;
         }
+        public IndexingTree? GetNewestTree()
+        {
+            IndexingTree? temp = null;
+            for (int i = 0; i < _indexingTrees.Count; i++)
+            {
+                if (i == 0)
+                {
+                    temp = _indexingTrees.Values[i];
+                    continue;
+                }
+                if (_indexingTrees.Values[i].SubmitTime.CompareTo(temp) > 0)
+                    temp =  _indexingTrees.Values[i];
+            }
+            return temp;
+        }
 
         public void ShowDiff()
         {
