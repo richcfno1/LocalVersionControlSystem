@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Windows.Forms;
 using Newtonsoft.Json;
 
 namespace LocalVersionControlSystem.ObjectSystem
@@ -12,24 +13,30 @@ namespace LocalVersionControlSystem.ObjectSystem
         private const int ContentSHA256PartLength = 6;
 
         //Use fileinfo to find a file, record nameSHA256 and contentSHA256, create a object file.
-        public static void CreateObject(this Project project, FileInfo f, string nameSHA256, string contentSHA256)
+        public static void CreateObject(this Project project, FileInfo f, string nameSHA256, string contentSHA256, bool tempMode = false)
         {
-            var outputFilePath = Path.Combine(project.ObjectsFolderPath, nameSHA256.Substring(0, NameSHA256PartLength) +
+            string objectsFolderPath = project.ObjectsFolderPath;
+            if (tempMode)
+                objectsFolderPath = Path.Combine(project.TemporaryFolderPath, Project.ObjectsName);
+            var outputFilePath = Path.Combine(objectsFolderPath, nameSHA256.Substring(0, NameSHA256PartLength) +
                 contentSHA256.Substring(0, ContentSHA256PartLength) + ".objdata");
             string resultJSON = JsonConvert.SerializeObject(new Object(nameSHA256, contentSHA256, f.Name, File.ReadAllBytes(f.FullName)));
             File.WriteAllText(outputFilePath, resultJSON);
         }
 
         //Use directoryinfo to find a directory, record nameSHA256 and contentSHA256(0), create a object file.
-        public static void CreateObject(this Project project, DirectoryInfo d, string nameSHA256)
+        public static void CreateObject(this Project project, DirectoryInfo d, string nameSHA256, bool tempMode = false)
         {
-            var outputFilePath = Path.Combine(project.ObjectsFolderPath, nameSHA256.Substring(0, NameSHA256PartLength) + "000000.objdata");
+            string objectsFolderPath = project.ObjectsFolderPath;
+            if (tempMode)
+                objectsFolderPath = Path.Combine(project.TemporaryFolderPath, Project.ObjectsName);
+            var outputFilePath = Path.Combine(objectsFolderPath, nameSHA256.Substring(0, NameSHA256PartLength) + "000000.objdata");
             string resultJSON = JsonConvert.SerializeObject(new Object(nameSHA256, EmptyZeroes, d.Name, Array.Empty<byte>()));
             File.WriteAllText(outputFilePath, resultJSON);
         }
 
         //Get HASH of name of a object file.
-        public static string GetFileNameSHA256(string objectPath)
+        public static string GetNameSHA256(string objectPath)
         {
             return JsonConvert.DeserializeObject<Object>(File.ReadAllText(objectPath)).NameSHA256;
         }
@@ -46,22 +53,17 @@ namespace LocalVersionControlSystem.ObjectSystem
         }
 
         //Find the path to a object with specific nameSHA256, contentSHA256, and path to all objects
-        public static string? FindObjectPath(this Project project, string nameSHA256, string contentSHA256)
+        public static string? FindObjectPath(this Project project, string nameSHA256, string contentSHA256, bool tempMode = false)
         {
-            var objectsFolder = new DirectoryInfo(project.ObjectsFolderPath);
+            string objectsFolderPath = project.ObjectsFolderPath;
+            if (tempMode)
+                objectsFolderPath = Path.Combine(project.TemporaryFolderPath, Project.ObjectsName);
+            var objectsFolder = new DirectoryInfo(objectsFolderPath);
             foreach (var file in objectsFolder.GetFiles())
             {
-                if (GetFileNameSHA256(file.FullName) == nameSHA256 && GetContentSHA256(file.FullName) == contentSHA256)
+                if (GetNameSHA256(file.FullName) == nameSHA256 && GetContentSHA256(file.FullName) == contentSHA256)
                 {
                     return file.FullName;
-                }
-            }
-
-            foreach (var directory in objectsFolder.GetDirectories())
-            {
-                if (GetFileNameSHA256(directory.FullName) == nameSHA256 && GetContentSHA256(directory.FullName) == contentSHA256)
-                {
-                    return directory.FullName;
                 }
             }
 

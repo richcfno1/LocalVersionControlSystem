@@ -19,7 +19,9 @@ namespace LocalVersionControlSystem.IndexingSystem
         {
             foreach (var f in new DirectoryInfo(_project.IndexingFolderPath).GetFiles())
             {
-                AddIndexingTree(new IndexingTree(_project, f.Name.Substring(0, 12)));
+                IndexingTree temp = new IndexingTree(_project, f.Name.Substring(0,12), "000000000000");
+                temp.ImportTreeFromIndexing();
+                AddIndexingTree(temp);
             }
         }
 
@@ -47,7 +49,7 @@ namespace LocalVersionControlSystem.IndexingSystem
                     temp = _indexingTrees.Values[i];
                     continue;
                 }
-                if (_indexingTrees.Values[i].SubmitTime.CompareTo(temp) > 0)
+                if (_indexingTrees.Values[i].SubmitTime.CompareTo(temp.SubmitTime) > 0)
                     temp =  _indexingTrees.Values[i];
             }
             return temp;

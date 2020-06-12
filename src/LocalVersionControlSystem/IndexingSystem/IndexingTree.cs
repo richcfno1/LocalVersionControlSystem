@@ -22,6 +22,8 @@ namespace LocalVersionControlSystem.IndexingSystem
         private List<IndexingNode> _allNodes;  //List of all nodes in the tree
         private string _lastIndexingID;
 
+        private bool _tempMode = false;
+
         //Return a list of lines that are only in indexingA.
         public static IEnumerable<string> CompareTwoIndexing(string indexingPath1, string indexingPath2)
         {
@@ -39,24 +41,27 @@ namespace LocalVersionControlSystem.IndexingSystem
             return indexing1.Where(a => !indexing2.Contains(a));
         }
 
-        //Constructor with a random id
-        public IndexingTree(Project project, string lastTreeID)
+        //Constructor with a random id.
+        //If TempMode = true, all files will be stored in Temp folder.
+        public IndexingTree(Project project, string lastTreeID, bool tempMode = false)
         {
-            // TODO: generate id from author, timestamp and/or file hash
-            ID = HashHelper.HashString(Guid.NewGuid().ToString()).Substring(0,12);
+            ID = HashHelper.HashString(Guid.NewGuid().ToString()).Substring(0, 12);
             Name = String.Empty;
             Describe = String.Empty;
             SubmitTime = DateTime.Now;
 
             Project = project;
             IndexFilePath = Path.Combine(Project.IndexingFolderPath, ID + ".idxdata");
-
+            _tempMode = tempMode;
+            if (_tempMode)
+                IndexFilePath = Path.Combine(Project.TemporaryFolderPath, Project.IndexingName, ID + ".idxdata");
             _allNodes = new List<IndexingNode>();
             _lastIndexingID = lastTreeID;
         }
 
         //Constructor with a specific id
-        public IndexingTree(Project project, string id, string lastTreeID)
+        //If TempMode = true, all files will be stored in Temp folder.
+        public IndexingTree(Project project, string id, string lastTreeID, bool tempMode = false)
         {
             ID = id;
             Name = String.Empty;
@@ -65,6 +70,9 @@ namespace LocalVersionControlSystem.IndexingSystem
 
             Project = project;
             IndexFilePath = Path.Combine(Project.IndexingFolderPath, ID + ".idxdata");
+            _tempMode = tempMode;
+            if (_tempMode)
+                IndexFilePath = Path.Combine(Project.TemporaryFolderPath, Project.IndexingName, ID + ".idxdata");
 
             _allNodes = new List<IndexingNode>();
             _lastIndexingID = lastTreeID;
@@ -105,7 +113,7 @@ namespace LocalVersionControlSystem.IndexingSystem
                 var subFileNode = new IndexingNode(fileNameHash, contentHash, parent);
                 _allNodes.Add(subFileNode);
                 parent.AddChild(subFileNode);
-                Project.CreateObject(f, fileNameHash, contentHash);
+                Project.CreateObject(f, fileNameHash, contentHash, _tempMode);
             }
 
             foreach (var d in directoryInfo.GetDirectories())
@@ -121,7 +129,7 @@ namespace LocalVersionControlSystem.IndexingSystem
                 var subDirectoryNode = new IndexingNode(directoryNameHash, parent);
                 _allNodes.Add(subDirectoryNode);
                 parent.AddChild(subDirectoryNode);
-                Project.CreateObject(d, directoryNameHash);
+                Project.CreateObject(d, directoryNameHash, _tempMode);
                 CreateTreeFromDirectory(Path.Combine(path, d.Name), subDirectoryNode);
             }
         }
@@ -131,7 +139,7 @@ namespace LocalVersionControlSystem.IndexingSystem
         {
             _allNodes.Clear();
             var rootInfo = new DirectoryInfo(Project.Path);
-            Project.CreateObject(rootInfo, HashHelper.HashString(rootInfo.Name));
+            Project.CreateObject(rootInfo, HashHelper.HashString(rootInfo.Name), _tempMode);
             _root = new IndexingNode(HashHelper.HashString(new DirectoryInfo(Project.Path).Name), null);
             _allNodes.Add(_root);
             CreateTreeFromDirectory(Project.Path, _root);
@@ -198,7 +206,7 @@ namespace LocalVersionControlSystem.IndexingSystem
                 }
                 return;
             }
-            var objectPath = Project.FindObjectPath(curNode.NameSHA256, curNode.ContentSHA256);
+            var objectPath = Project.FindObjectPath(curNode.NameSHA256, curNode.ContentSHA256, _tempMode);
             var nextLayerPath = "";
             if (objectPath != null && curNode.ContentSHA256 != ObjectHelper.EmptyZeroes)
             {

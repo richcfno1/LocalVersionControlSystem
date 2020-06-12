@@ -15,7 +15,10 @@ namespace LocalVersionControlSystem
         [STAThread]
         static void Main(string[] _)
         {
-
+            Project project = new Project("C:\\Users\\14261\\Desktop\\TestFiles");
+            IndexingTree it = new IndexingTree(project, "BAD94AD56AF0");
+            it.ImportTreeFromIndexing();
+            it.ExportTreeToDirectory();
         }
     }
 }
