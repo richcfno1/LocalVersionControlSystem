@@ -16,6 +16,7 @@ namespace LocalVersionControlSystem.CommitSystem
         {
             NameList = new List<string>();
             IndexingTreeIDList = new List<string>();
+            _filePath = string.Empty;
             if (project != null)
                 _filePath = project.BrenchFolderPath;
         }

@@ -31,6 +31,14 @@ namespace LocalVersionControlSystem.IndexingSystem
             return indexing1.Where(a => !indexing2.Contains(a));
         }
 
+        public static IEnumerable<string> CompareTwoIndexing(IndexingTree indexingTree1, IndexingTree indexingTree2)
+        {
+            var indexing1 = JsonConvert.DeserializeObject<Indexing>(indexingTree1.ToJSON()).ProjectContents;
+            var indexing2 = JsonConvert.DeserializeObject<Indexing>(indexingTree2.ToJSON()).ProjectContents;
+            indexing1[0] = indexing2[0];  //Ignore the line about time
+            return indexing1.Where(a => !indexing2.Contains(a));
+        }
+
         //Constructor with a random id
         public IndexingTree(Project project, string lastTreeID)
         {
@@ -240,6 +248,19 @@ namespace LocalVersionControlSystem.IndexingSystem
 
             File.WriteAllText(IndexFilePath, JsonConvert.SerializeObject(new Indexing(ID, Name, Describe,
                 SubmitTime, _lastIndexingID, contents.ToArray())));
+        }
+
+        public string ToJSON()
+        {
+            if (_root == null)
+            {
+                throw new InvalidOperationException();
+            }
+            List<string> contents = new List<string>();
+
+            CreateIndexingFromTree(contents, _root, "");
+
+            return JsonConvert.SerializeObject(new Indexing(ID, Name, Describe, SubmitTime, _lastIndexingID, contents.ToArray()));
         }
     }
 }
