@@ -18,7 +18,15 @@ namespace LocalVersionControlSystem.CommitSystem
             IndexingTreeIDList = new List<string>();
             _filePath = string.Empty;
             if (project != null)
+            {
                 _filePath = project.BrenchFolderPath;
+                if (!Load())
+                {
+                    NameList.Add("Master");
+                    IndexingTreeIDList.Add("000000000000");
+                    Save();
+                }
+            }
         }
 
         public void NewBrench(string name, string indexingTreeID)
@@ -32,11 +40,14 @@ namespace LocalVersionControlSystem.CommitSystem
             return IndexingTreeIDList[NameList.IndexOf(name)];
         }
 
-        public void Load()
+        public bool Load()
         {
+            if (!File.Exists(_filePath))
+                return false;
             Brench temp = JsonConvert.DeserializeObject<Brench>(File.ReadAllText(_filePath));
             this.NameList = temp.NameList;
             this.IndexingTreeIDList = temp.IndexingTreeIDList;
+            return true;
         }
 
         public void Save()

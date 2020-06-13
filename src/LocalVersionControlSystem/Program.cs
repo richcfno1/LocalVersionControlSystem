@@ -16,9 +16,13 @@ namespace LocalVersionControlSystem
         static void Main(string[] _)
         {
             Project project = new Project("C:\\Users\\14261\\Desktop\\TestFiles");
-            IndexingTree it = new IndexingTree(project, "BAD94AD56AF0");
-            it.ImportTreeFromIndexing();
-            it.ExportTreeToDirectory();
+            IndexingTree it1 = new IndexingTree(project, "85A528AC24E8", "000000000000");
+            it1.ImportTreeFromDirectory();
+            Console.WriteLine(it1.GetAllNodes().Count);
+            it1.ExportTreeToIndexing();
+            Console.WriteLine(it1.GetAllNodes().Count);
+            it1.ImportTreeFromIndexing();
+            Console.WriteLine(it1.GetAllNodes().Count);
         }
     }
 }

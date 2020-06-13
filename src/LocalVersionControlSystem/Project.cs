@@ -7,6 +7,11 @@ namespace LocalVersionControlSystem
         /// <summary>
         /// The name of folder containing indexing and object data.
         /// </summary>
+        public string ProjectName { get; set; }
+
+        /// <summary>
+        /// The name of folder containing indexing and object data.
+        /// </summary>
         public const string PrivateFolderName = ".LocalVersionControlSystem";
 
         /// <summary>
@@ -57,6 +62,7 @@ namespace LocalVersionControlSystem
         public Project(string projectPath)
         {
             Path = projectPath;
+            ProjectName = projectPath.Substring(projectPath.LastIndexOf("\\") + 1);
 
             if (!Directory.Exists(IndexingFolderPath))
                 Directory.CreateDirectory(IndexingFolderPath);

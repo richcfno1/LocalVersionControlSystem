@@ -17,14 +17,14 @@ namespace LocalVersionControlSystem.IndexingSystem
 
         public Project Project { get; set; }   // user's project.
         public string IndexFilePath { get; } //Place to save indexing.
+        public string LastIndexingID { get; set; }  //Last Indexing Tree ID
 
         private IndexingNode? _root;    //Root node of the tree.
         private List<IndexingNode> _allNodes;  //List of all nodes in the tree
-        private string _lastIndexingID;
 
         private bool _tempMode = false;
 
-        //Return a list of lines that are only in indexingA.
+        //Return a list of lines that are only in indexing1.
         public static IEnumerable<string> CompareTwoIndexing(string indexingPath1, string indexingPath2)
         {
             var indexing1 = JsonConvert.DeserializeObject<Indexing>(File.ReadAllText(indexingPath1)).ProjectContents;
@@ -35,6 +35,16 @@ namespace LocalVersionControlSystem.IndexingSystem
 
         public static IEnumerable<string> CompareTwoIndexing(IndexingTree indexingTree1, IndexingTree indexingTree2)
         {
+            if (indexingTree1 == null)
+            {
+                return new List<string>();
+            }
+            if (indexingTree2 == null)
+            {
+                List<string> result = JsonConvert.DeserializeObject<Indexing>(indexingTree1.ToJSON()).ProjectContents.ToList();
+                result.RemoveAt(0);
+                return result;
+            }
             var indexing1 = JsonConvert.DeserializeObject<Indexing>(indexingTree1.ToJSON()).ProjectContents;
             var indexing2 = JsonConvert.DeserializeObject<Indexing>(indexingTree2.ToJSON()).ProjectContents;
             indexing1[0] = indexing2[0];  //Ignore the line about time
@@ -56,7 +66,7 @@ namespace LocalVersionControlSystem.IndexingSystem
             if (_tempMode)
                 IndexFilePath = Path.Combine(Project.TemporaryFolderPath, Project.IndexingName, ID + ".idxdata");
             _allNodes = new List<IndexingNode>();
-            _lastIndexingID = lastTreeID;
+            LastIndexingID = lastTreeID;
         }
 
         //Constructor with a specific id
@@ -75,7 +85,7 @@ namespace LocalVersionControlSystem.IndexingSystem
                 IndexFilePath = Path.Combine(Project.TemporaryFolderPath, Project.IndexingName, ID + ".idxdata");
 
             _allNodes = new List<IndexingNode>();
-            _lastIndexingID = lastTreeID;
+            LastIndexingID = lastTreeID;
         }
 
         //Operate root
@@ -146,7 +156,7 @@ namespace LocalVersionControlSystem.IndexingSystem
         }
 
         //The function which can implement ImportTreeFromIndexing.
-        private void CreateTreeFromIndexing(string[] indexing, int curLine, IndexingNode parent)
+        private void CreateTreeFromIndexing(string[] indexing, int curLine, IndexingNode parent, int curLayer)
         {
             while(curLine + 1 < indexing.Length)
             {
@@ -156,6 +166,11 @@ namespace LocalVersionControlSystem.IndexingSystem
 
                 //Get the node information.
                 var layer = line.Length / 131;
+                if (layer != 1)
+                    if (line.Substring((layer - 2) * 131, 131).Substring(1, 64) != parent.NameSHA256)
+                        continue;
+                if (layer != curLayer + 1)
+                    continue;
                 line = line.Substring((layer - 1) * 131, 131);
 
                 var nameHash = line.Substring(1, 64);
@@ -166,7 +181,7 @@ namespace LocalVersionControlSystem.IndexingSystem
                     var tempNode = new IndexingNode(nameHash, parent);
                     _allNodes.Add(tempNode);
                     parent.AddChild(tempNode);
-                    CreateTreeFromIndexing(indexing, curLine, tempNode);
+                    CreateTreeFromIndexing(indexing, curLine, tempNode, layer);
                 }
                 else
                 {
@@ -187,12 +202,12 @@ namespace LocalVersionControlSystem.IndexingSystem
             Describe = temp.IndexingDescribe;
             SubmitTime = temp.SubmitTime;
 
-            _lastIndexingID = temp.LastIndexingID;
+            LastIndexingID = temp.LastIndexingID;
 
             var contents = temp.ProjectContents;
             _root = new IndexingNode(contents[0].Substring(1, 64), null);
             _allNodes.Add(_root);
-            CreateTreeFromIndexing(contents, 0, _root);
+            CreateTreeFromIndexing(contents, 0, _root, 1);
         }
 
         //The function which can implement ExportTreeToDirectory.
@@ -255,7 +270,7 @@ namespace LocalVersionControlSystem.IndexingSystem
             CreateIndexingFromTree(contents, _root, "");
 
             File.WriteAllText(IndexFilePath, JsonConvert.SerializeObject(new Indexing(ID, Name, Describe,
-                SubmitTime, _lastIndexingID, contents.ToArray())));
+                SubmitTime, LastIndexingID, contents.ToArray())));
         }
 
         public string ToJSON()
@@ -268,7 +283,7 @@ namespace LocalVersionControlSystem.IndexingSystem
 
             CreateIndexingFromTree(contents, _root, "");
 
-            return JsonConvert.SerializeObject(new Indexing(ID, Name, Describe, SubmitTime, _lastIndexingID, contents.ToArray()));
+            return JsonConvert.SerializeObject(new Indexing(ID, Name, Describe, SubmitTime, LastIndexingID, contents.ToArray()));
         }
     }
 }
