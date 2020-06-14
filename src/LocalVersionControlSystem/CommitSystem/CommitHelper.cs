@@ -3,13 +3,15 @@ using System.IO;
 using LocalVersionControlSystem.ObjectSystem;
 using System.IO.Compression;
 using System;
+using Newtonsoft.Json;
+using LocalVersionControlSystem.Helper;
 
 namespace LocalVersionControlSystem.CommitSystem
 {
     class CommitHelper
     {
         //Commit is a function to zip an indexing file and related object file
-        public static void ExportCommit(Project project, IndexingTree targetIndexing)
+        public static void ExportCommit(Project project, string targetPath, IndexingTree targetIndexing)
         {
             var path = Path.Combine(project.TemporaryFolderPath, targetIndexing.ID);
             //Step 1: Copy all of them to a temp directory
@@ -23,6 +25,7 @@ namespace LocalVersionControlSystem.CommitSystem
             //Indexing
             FileInfo indexingFile = new FileInfo(targetIndexing.IndexFilePath);
             indexingFile.CopyTo(Path.Combine(project.TemporaryFolderPath, targetIndexing.ID, indexingFile.Name));
+
             //Objects
             foreach (IndexingNode n in targetIndexing.GetAllNodes())
             {
@@ -31,27 +34,33 @@ namespace LocalVersionControlSystem.CommitSystem
             }
 
             //Step 2: Zip them
-            ZipFile.CreateFromDirectory(path, path + ".zip");
+            ZipFile.CreateFromDirectory(path, targetPath);
 
             //Step 3: Delete temp file
             Directory.Delete(path, true);
         }
 
-        public static void ImportCommit(Project project, string id)
+        //Extract .cmtdata file and return the id of the tree.
+        public static string ImportCommit(Project project, string path, string cmtdataName)
         {
-            if (Directory.Exists(Path.Combine(project.TemporaryFolderPath, id)))
-                Directory.Delete(Path.Combine(project.TemporaryFolderPath, id), true);
-            if (!File.Exists(Path.Combine(project.TemporaryFolderPath, id + ".zip")))
+            string result = string.Empty;
+            if (Directory.Exists(Path.Combine(project.TemporaryFolderPath, cmtdataName)))
+                Directory.Delete(Path.Combine(project.TemporaryFolderPath, cmtdataName), true);
+            if (!File.Exists(path))
                 throw new Exception("No such commit");
-            ZipFile.ExtractToDirectory(Path.Combine(project.TemporaryFolderPath, id + ".zip"), Path.Combine(project.TemporaryFolderPath, id));
-            foreach (FileInfo f in new DirectoryInfo(Path.Combine(project.TemporaryFolderPath, id)).GetFiles())
+            ZipFile.ExtractToDirectory(path, Path.Combine(project.TemporaryFolderPath, cmtdataName));
+            foreach (FileInfo f in new DirectoryInfo(Path.Combine(project.TemporaryFolderPath, cmtdataName)).GetFiles())
             {
                 if (f.Extension == ".idxdata")
+                {
+                    result = f.Name.Substring(0, f.Name.LastIndexOf(".idxdata"));
                     f.CopyTo(Path.Combine(project.IndexingFolderPath, f.Name), true);
+                }
                 else
                     f.CopyTo(Path.Combine(project.ObjectsFolderPath, f.Name), true);
             }
-            Directory.Delete(Path.Combine(project.TemporaryFolderPath, id), true);
+            Directory.Delete(Path.Combine(project.TemporaryFolderPath, cmtdataName), true);
+            return result;
         }
     }
 }

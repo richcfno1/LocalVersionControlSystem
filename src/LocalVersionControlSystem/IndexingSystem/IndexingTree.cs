@@ -10,7 +10,7 @@ namespace LocalVersionControlSystem.IndexingSystem
 {
     class IndexingTree
     {
-        public string ID { get; }
+        public string ID { get; set; }
         public string Name { get; set; }
         public string Describe { get; set; }
         public DateTime SubmitTime { get; set; }

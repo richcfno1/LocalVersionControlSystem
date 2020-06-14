@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace LocalVersionControlSystem.IndexingSystem
 {
@@ -53,6 +54,16 @@ namespace LocalVersionControlSystem.IndexingSystem
                     temp =  _indexingTrees.Values[i];
             }
             return temp;
+        }
+
+        public List<IndexingTree> GetAllIndexingTrees()
+        {
+            return _indexingTrees.Values.ToList();
+        }
+
+        public void Clear()
+        {
+            _indexingTrees.Clear();
         }
 
         public void ShowDiff()
