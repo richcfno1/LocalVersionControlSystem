@@ -30,7 +30,7 @@ namespace LocalVersionControlSystem.IndexingSystem
             _indexingTrees.Add(newIndexingTree.SubmitTime, newIndexingTree);
         }
 
-        public IndexingTree? GetIndexingTree(string id)
+        public IndexingTree GetIndexingTree(string id)
         {
             for(int i = 0; i < _indexingTrees.Count; i++)
             {
@@ -39,9 +39,9 @@ namespace LocalVersionControlSystem.IndexingSystem
             }
             return null;
         }
-        public IndexingTree? GetNewestTree()
+        public IndexingTree GetNewestTree()
         {
-            IndexingTree? temp = null;
+            IndexingTree temp = null;
             for (int i = 0; i < _indexingTrees.Count; i++)
             {
                 if (i == 0)

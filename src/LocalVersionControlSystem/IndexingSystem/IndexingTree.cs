@@ -285,5 +285,10 @@ namespace LocalVersionControlSystem.IndexingSystem
 
             return JsonConvert.SerializeObject(new Indexing(ID, Name, Describe, SubmitTime, LastIndexingID, contents.ToArray()));
         }
+
+        public override string ToString()
+        {
+            return Name;
+        }
     }
 }

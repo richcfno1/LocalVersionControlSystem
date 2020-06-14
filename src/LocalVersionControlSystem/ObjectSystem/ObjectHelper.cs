@@ -51,6 +51,11 @@ namespace LocalVersionControlSystem.ObjectSystem
             return JsonConvert.DeserializeObject<Object>(File.ReadAllText(objectPath)).Name;
         }
 
+        public static byte[] GetContent(string objectPath)
+        {
+            return JsonConvert.DeserializeObject<Object>(File.ReadAllText(objectPath)).Content;
+        }
+
         //Find the path to a object with specific nameSHA256, contentSHA256, and path to all objects
         public static string? FindObjectPath(this Project project, string nameSHA256, string contentSHA256, bool tempMode = false)
         {
