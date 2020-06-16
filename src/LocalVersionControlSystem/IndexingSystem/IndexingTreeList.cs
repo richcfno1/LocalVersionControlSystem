@@ -18,6 +18,7 @@ namespace LocalVersionControlSystem.IndexingSystem
 
         public void LoadIndexingTrees()
         {
+            _indexingTrees.Clear();
             foreach (var f in new DirectoryInfo(_project.IndexingFolderPath).GetFiles())
             {
                 IndexingTree temp = new IndexingTree(_project, f.Name.Substring(0,12), "000000000000");

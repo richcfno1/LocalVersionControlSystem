@@ -7,15 +7,17 @@ namespace LocalVersionControlSystem.IndexingSystem
     {
         public static List<IndexingNode> OnlyInIndexing1 = new List<IndexingNode>();
         public static List<IndexingNode> OnlyInIndexing2 = new List<IndexingNode>();
-        public static List<IndexingNode> UpdateNode = new List<IndexingNode>();  //The name exist in both tree but different content.
+        public static List<IndexingNode> UpdateNodeIn1 = new List<IndexingNode>();  //The name exist in both tree but different content.
+        public static List<IndexingNode> UpdateNodeIn2 = new List<IndexingNode>();  //The name exist in both tree but different content.
         private static List<IndexingNode> ResultIndexingNodes = new List<IndexingNode>();
-        private static IndexingTree? ResultTree;
+        private static IndexingTree ResultTree;
 
         public static IndexingTree Merge(IndexingTree indexingTree1, IndexingTree indexingTree2)
         {
             OnlyInIndexing1 = new List<IndexingNode>();
             OnlyInIndexing2 = new List<IndexingNode>();
-            UpdateNode = new List<IndexingNode>();
+            UpdateNodeIn1 = new List<IndexingNode>();
+            UpdateNodeIn2 = new List<IndexingNode>();
             ResultIndexingNodes = new List<IndexingNode>();
             ResultTree = new IndexingTree(indexingTree1.Project, "000000000000");
 
@@ -63,7 +65,7 @@ namespace LocalVersionControlSystem.IndexingSystem
         }
 
         //Step 1: Copy Tree 1 to result
-        private static void CopyFromTree1(IndexingNode? resultTreeParent, IndexingNode originalTreeCurrent)
+        public static void CopyFromTree1(IndexingNode? resultTreeParent, IndexingNode originalTreeCurrent)
         {
             if (ResultTree == null)
                 throw new Exception("Uninitialized tree");
@@ -85,12 +87,13 @@ namespace LocalVersionControlSystem.IndexingSystem
         }
 
         //Step 2: Insert node only in Tree 2 without conflicts
-        private static void Insert(IndexingNode curNode, IndexingNode insertNode)
+        public static void Insert(IndexingNode curNode, IndexingNode insertNode)
         {
-            IndexingNode? parent = insertNode.GetParent();
+            IndexingNode parent = insertNode.GetParent();
             if (parent == null)
                 throw new Exception();
-            if (curNode.NameSHA256.Equals(parent.NameSHA256, StringComparison.InvariantCulture)){
+            if (curNode.NameSHA256.Equals(parent.NameSHA256, StringComparison.InvariantCulture))
+            {
                 IndexingNode temp = new IndexingNode(insertNode.NameSHA256, insertNode.ContentSHA256, curNode);
                 foreach (IndexingNode n in curNode.Children)
                 {
@@ -98,9 +101,13 @@ namespace LocalVersionControlSystem.IndexingSystem
                     if (n.NameSHA256.Equals(insertNode.NameSHA256, StringComparison.InvariantCulture) &&
                         !n.ContentSHA256.Equals(insertNode.ContentSHA256, StringComparison.InvariantCulture))
                     {
-                        UpdateNode.Add(temp);
+                        UpdateNodeIn1.Add(n);
+                        UpdateNodeIn2.Add(temp);
                         return;
                     }
+                    if (n.NameSHA256.Equals(insertNode.NameSHA256, StringComparison.InvariantCulture) &&
+                        n.ContentSHA256.Equals(insertNode.ContentSHA256, StringComparison.InvariantCulture))
+                        return;
                 }
                 curNode.AddChild(temp);
                 ResultIndexingNodes.Add(temp);
@@ -108,6 +115,16 @@ namespace LocalVersionControlSystem.IndexingSystem
             }
             foreach (IndexingNode n in curNode.Children)
                 Insert (n, insertNode);
+        }
+
+        public static void Clean()
+        {
+            OnlyInIndexing1 = new List<IndexingNode>();
+            OnlyInIndexing2 = new List<IndexingNode>();
+            UpdateNodeIn1 = new List<IndexingNode>();
+            UpdateNodeIn2 = new List<IndexingNode>();
+            ResultIndexingNodes = new List<IndexingNode>();
+            ResultTree = null;
         }
     }
 }
